@@ -12,9 +12,6 @@ my %valid_options = (
     'gen-parrot'    => 'Automatically retrieve and build Parrot',
 );
 
-#  Work out slash character to use.
-my $slash = $^O eq 'MSWin32' ? '\\' : '/';
-
 
 #  Get any options from the command line
 my %options = get_command_options();
@@ -34,8 +31,8 @@ if ($options{'gen-parrot'}) {
     
 
 #  Get a list of parrot-configs to invoke.
-my @parrot_config_exe = ("parrot${slash}parrot_config", 
-     "..${slash}..${slash}parrot_config", "parrot_config");
+my @parrot_config_exe = ("parrot/parrot_config", 
+     "../../parrot_config", "parrot_config");
 if ($options{'parrot-config'} && $options{'parrot-config'} ne '1') {
     @parrot_config_exe = ($options{'parrot-config'});
 }
@@ -43,8 +40,13 @@ if ($options{'parrot-config'} && $options{'parrot-config'} ne '1') {
 #  Get configuration information from parrot_config
 my %config = read_parrot_config(@parrot_config_exe);
 unless (%config) {
-    die "Unable to obtain configuration from "
-        . join(', ', @parrot_config_exe) . "\n";
+    die <<"END";
+Unable to locate parrot_config.
+To automatically checkout (svn) and build a copy of parrot,
+try re-running Configure.pl with the '--gen-parrot' option.
+Or, use the '--parrot-config' option to explicitly specify
+the location of parrot_config.
+END
 }
 
 #  Create the Makefile using the information we just got
@@ -95,8 +97,9 @@ sub create_makefile {
         die "Unable to read build/Makefile.in \n";
     my $maketext = join('', <$ROOTIN>);
     close $ROOTIN;
-    $maketext =~ s/@(\w+)@/$config{$1}/g;
 
+    $config{'win32_libparrot_copy'} = $^O eq 'MSWin32' ? 'copy $(BUILD_DIR)\libparrot.dll .' : '';
+    $maketext =~ s/@(\w+)@/$config{$1}/g;
     if ($^O eq 'MSWin32') {
         $maketext =~ s{/}{\\}g;
     }
