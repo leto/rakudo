@@ -90,10 +90,10 @@ between 0 and 2*pi .
     $N1 = imag * imag
     $N2 = $N0 + $N1
     magnitude = sqrt $N2
-    twopi    =  atan  0, -1
-    twopi    *= 2
     angle = atan imag, real
     if angle > 0 goto correct_branch
+    twopi    =  atan  0, -1
+    twopi    *= 2
     angle = angle + twopi
   correct_branch:
     .tailcall 'list'(magnitude, angle)
