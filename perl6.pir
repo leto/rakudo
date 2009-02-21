@@ -222,7 +222,7 @@ to the Perl 6 compiler.
 
 =cut
 
-#.include 'src/gen_setting.pir'
+.include 'src/gen_setting.pir'
 .include 'src/gen_grammar.pir'
 .include 'src/parser/expression.pir'
 .include 'src/parser/methods.pir'
