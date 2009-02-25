@@ -163,48 +163,6 @@ Remove leading and trailing whitespace from a string.
     .return(s)
 .end
 
-=item comb()
-
-Partial implementation for now, returns a list of strings
-(instead of a list of match objects).
-
-=cut
-
-.sub 'comb' :method :multi(_)
-    .param pmc regex
-    .param int count        :optional
-    .param int has_count    :opt_flag
-    .local pmc retv, match
-    .local string s
-    .local int pos
-
-    retv = 'list'()
-    s = self
-
-    pos = 0
-
-  do_match:
-    match = regex(s, 'continue' => pos)
-    unless match goto done
-    unless has_count goto skip_count
-    dec count
-    if count < 0 goto done
-  skip_count:
-    # shouldn't have to coerce to Str here, but see RT #55962
-    $S0 = match
-    retv.'push'($S0)
-    $I0 = match.'to'()
-    if pos == $I0 goto zero_width
-    pos = $I0
-    goto do_match
-
-  zero_width:
-    inc pos
-    goto do_match
-  done:
-    .return(retv)
-.end
-
 =item ':d'()
 
  our Bool multi Str::':d' ( Str $filename )
@@ -318,7 +276,8 @@ Returns the invocant formatted by an implicit call to C<sprintf>.
     s = self
 
   check_substring:
-    if substring goto substring_search
+    $I1 = length substring
+    if $I1 goto substring_search
     $I0 = length s
     if pos < $I0 goto done
     pos = $I0
@@ -501,117 +460,6 @@ B<Note:> partial implementation only
     .param pmc sep
     .param pmc target
     .tailcall target.'split'(sep)
-.end
-
-.namespace['Any']
-.sub 'split' :method :multi(_, _)
-    .param string delim
-    .param int count        :optional
-    .param int has_count    :opt_flag
-    .local string objst
-    .local pmc pieces
-    .local pmc retv
-    .local int len
-    .local int pos
-    .local int i
-
-    retv = new 'List'
-
-    # per Perl 5's negative LIMIT behavior
-    unless has_count goto positive_count
-    unless count < 1 goto positive_count
-    has_count = 0
-
-  positive_count:
-    objst = self
-    length $I0, delim
-    split pieces, delim, objst
-    len = pieces
-    pos = 0
-    i = 0
-
-  loop:
-    unless has_count goto skip_count
-    dec count
-    unless count < 1 goto skip_count
-    $S0 = substr objst, pos
-    retv.'push'($S0)
-    goto done
-  skip_count:
-    if i == len goto done
-    $S0 = pieces[i]
-    retv.'push'($S0)
-    length $I1, $S0
-    pos += $I0
-    pos += $I1
-    inc i
-    goto loop
-
-  done:
-    .return(retv)
-.end
-
-.sub 'split' :method :multi(_, 'Sub')
-    .param pmc regex
-    .param int count        :optional
-    .param int has_count    :opt_flag
-    .local pmc match
-    .local pmc retv
-    .local int start_pos
-    .local int end_pos
-    .local int zwm_start
-
-    $S0 = self
-    retv = new 'List'
-    start_pos = 0
-
-    # per Perl 5's negative LIMIT behavior
-    unless has_count goto positive_count
-    if count < 1 goto done
-
-  positive_count:
-    match = regex($S0)
-    if match goto loop
-    retv.'push'($S0)
-    goto done
-
-  loop:
-    unless has_count goto skip_count
-    dec count
-    unless count < 1 goto skip_count
-    $S1 = substr $S0, start_pos
-    retv.'push'($S1)
-    goto done
-  next_zwm:
-    zwm_start = start_pos
-  inc_zwm:
-    inc start_pos
-    match = regex($S0, 'continue' => start_pos)
-    end_pos = match.'from'()
-    unless start_pos == end_pos goto inc_zwm
-    start_pos = zwm_start
-    end_pos -= start_pos
-    goto add_str
-  skip_count:
-    match = regex($S0, 'continue' => start_pos)
-    end_pos = match.'from'()
-    $I99 = match.'to'()
-    if $I99 == end_pos goto next_zwm
-    end_pos -= start_pos
-  add_str:
-    $S1 = substr $S0, start_pos, end_pos
-    retv.'push'($S1)
-    unless match goto done
-    $I0 = match.'to'()
-    if $I0 == start_pos goto zero_width
-    start_pos = $I0
-    goto loop
-  zero_width:
-    inc start_pos
-    goto loop
-
-  done:
-    .return(retv)
 .end
 
 =item substr()
