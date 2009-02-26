@@ -85,6 +85,8 @@ or more succinctly:
    $x <=> 0;
  }
 
+Returns the sign of $x, i.e +1 for positive numbers (including Inf), zero for zero and -1 for negative numbers (including -Inf).
+
 =cut
 
 .sub 'sign'
@@ -120,6 +122,8 @@ constant I<e>.
 =item log10
 
  &log10 := &log.assuming:base(10);
+
+Returns the base 10 logarithm of $x.
 
 =cut
 
