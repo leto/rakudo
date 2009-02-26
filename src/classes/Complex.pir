@@ -76,14 +76,13 @@ Returns the logarithm of a Complex.
 
 =item polar
 
-Returns the polar representation of a Complex. The angle returned is always
-between 0 and 2*pi .
+Returns the polar representation of a Complex.
 
 =cut
 
 .namespace ['Perl6Complex']
 .sub 'polar' :method :multi('Complex')
-    .local num real, imag, magnitude, angle, twopi
+    .local num real, imag, magnitude, angle
     real = self[0]
     imag = self[1]
     $N0 = real * real
@@ -91,11 +90,6 @@ between 0 and 2*pi .
     $N2 = $N0 + $N1
     magnitude = sqrt $N2
     angle = atan imag, real
-    if angle > 0 goto correct_branch
-    twopi    =  atan  0, -1
-    twopi    *= 2
-    angle = angle + twopi
-  correct_branch:
     .tailcall 'list'(magnitude, angle)
 .end
 
