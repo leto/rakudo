@@ -106,7 +106,7 @@ BUILTINS_PIR = \
   src/builtins/traits.pir \
 
 SETTING = \
-  src/setting/Any.pm \
+  src/setting/Any-str.pm \
   src/setting/Array.pm \
   src/setting/Bool.pm \
   src/setting/Hash.pm \
@@ -173,10 +173,14 @@ t/spec :
 spectest_update :
 	-cd t/spec && svn up
 
-testable : perl6.pbc Test.pir spectest_checkout spectest_update
+testable : perl6$(EXE) Test.pir spectest_checkout spectest_update
 
 xmas: perl6$(EXE)
 
+CRITIC_FILES=Configure.pl t/harness build/ config/ tools/
+
+perlcritic:
+	perlcritic -1 --profile tools/util/perlcritic.conf $(CRITIC_FILES)
 
 ##  supporting targets for perl6
 # the Perl 6 compiler
@@ -250,7 +254,7 @@ test    : coretest
 codetest:
 	$(MAKE) $(BUILD_DIR) codetest
 
-coretest: perl6.pbc
+coretest: perl6$(EXE)
 #	prove t/pmc
 	$(PERL) t/harness t/00-parrot t/01-sanity
 
@@ -318,6 +322,9 @@ help:
 	@echo "  spectest:          Run the tests of the official test suite that are known to pass."
 	@echo "  spectest_full:     Run all tests of the official test suite"
 	@echo ""
+	@echo "Maintenance:"
+	@echo "  perlcritic         Run Perl::Critic on all the Perl 5 code."
+	@echo ""
 	@echo "Cleaning:"
 	@echo "  clean:             Basic cleaning up."
 	@echo "  distclean:         Removes also anything built, in theory."
@@ -327,4 +334,3 @@ help:
 	@echo "Misc:"
 	@echo "  help:              Print this help message."
 	@echo ""
-
