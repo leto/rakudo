@@ -89,8 +89,14 @@ or more succinctly:
 
 .sub 'sign'
     .param pmc a
+    if a == 'Inf' goto unity
+    if a == 'NaN' goto not_a_number
     $I0 = cmp_num a, 0
     .return ($I0)
+  not_a_number:
+    .return (a)
+  unity:
+    .return (1)
 .end
 
 
