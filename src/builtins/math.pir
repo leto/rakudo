@@ -25,10 +25,15 @@ Returns the highest integer not greater than $x.
 =cut
 
 .sub 'floor'
-    .param num n
+    .param string x
+    .local num n
     .local int i
+    if x == 'NaN' goto not_a_number
+    n = x
     floor i, n
     .return (i)
+  not_a_number:
+    .return ('NaN')
 .end
 
 
@@ -42,10 +47,15 @@ Returns the lowest integer not less than $x.
 =cut
 
 .sub 'ceiling'
-    .param num n
+    .param string x
+    .local num n
     .local int i
+    if x == 'NaN' goto not_a_number
+    n = x
     ceil i, n
     .return (i)
+  not_a_number:
+    .return ('NaN')
 .end
 
 
@@ -60,11 +70,16 @@ Returns the nearest integer to $x.  The algorithm is floor($x + 0.5).
 =cut
 
 .sub 'round'
-    .param num n
+    .param string x
+    .local num n
     .local int i
+    if x == 'NaN' goto not_a_number
+    n = x
     n += 0.5
     floor i, n
     .return (i)
+  not_a_number:
+    .return ('NaN')
 .end
 
 
