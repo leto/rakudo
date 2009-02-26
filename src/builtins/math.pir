@@ -28,12 +28,14 @@ Returns the highest integer not greater than $x.
     .param string x
     .local num n
     .local int i
-    if x == 'NaN' goto not_a_number
+    if x == 'NaN'  goto special
+    if x == 'Inf'  goto special
+    if x == '-Inf' goto special
     n = x
     floor i, n
     .return (i)
-  not_a_number:
-    .return ('NaN')
+  special:
+    .return (x)
 .end
 
 
@@ -50,12 +52,14 @@ Returns the lowest integer not less than $x.
     .param string x
     .local num n
     .local int i
-    if x == 'NaN' goto not_a_number
+    if x == 'NaN' goto special
+    if x == 'Inf'  goto special
+    if x == '-Inf' goto special
     n = x
     ceil i, n
     .return (i)
-  not_a_number:
-    .return ('NaN')
+  special:
+    .return (x)
 .end
 
 
@@ -73,13 +77,15 @@ Returns the nearest integer to $x.  The algorithm is floor($x + 0.5).
     .param string x
     .local num n
     .local int i
-    if x == 'NaN' goto not_a_number
+    if x == 'NaN' goto special
+    if x == 'Inf'  goto special
+    if x == '-Inf' goto special
     n = x
     n += 0.5
     floor i, n
     .return (i)
-  not_a_number:
-    .return ('NaN')
+  special:
+    .return (x)
 .end
 
 
