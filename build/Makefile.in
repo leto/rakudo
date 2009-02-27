@@ -130,7 +130,6 @@ CLEANUPS = \
   perl6$(O) \
   perl6$(EXE) \
   perl6_s1.pbc \
-  installable_perl6$(EXE) \
   Test.pir \
   src/gen_*.pir \
   src/gen_*.pm \
@@ -160,8 +159,7 @@ HARNESS_WITH_FUDGE_JOBS = $(HARNESS_WITH_FUDGE) --jobs
 all: perl6$(EXE)
 
 ##  targets for building a standalone perl6.
-# (We're not quite ready to make this a default target.)
-perl6$(EXE): perl6.pbc
+perl6$(EXE): $(PBC_TO_EXE) perl6.pbc
 	$(PBC_TO_EXE) perl6.pbc
 	@win32_libparrot_copy@
 
@@ -177,7 +175,7 @@ testable : perl6$(EXE) Test.pir spectest_checkout spectest_update
 
 xmas: perl6$(EXE)
 
-CRITIC_FILES=Configure.pl t/harness build/ config/ tools/
+CRITIC_FILES=Configure.pl t/harness build/ tools/
 
 perlcritic:
 	perlcritic -1 --profile tools/util/perlcritic.conf $(CRITIC_FILES)
@@ -193,9 +191,6 @@ perl6.pbc: perl6_s1.pbc src/gen_setting.pm
 	$(PARROT) $(PARROT_ARGS) perl6_s1.pbc --target=pir src/gen_setting.pm > src/gen_setting.pir
 	$(PARROT) $(PARROT_ARGS) -o perl6.pbc perl6.pir
 
-installable_perl6$(EXE): perl6.pbc
-	$(PBC_TO_EXE) perl6.pbc --install
-
 Test.pir: Test.pm perl6.pbc
 	$(PARROT) $(PARROT_ARGS) perl6.pbc --target=pir --output=Test.pir Test.pm
 
@@ -203,12 +198,12 @@ $(PMC_DIR)/objectref.pmc : $(PMC_DIR)/objectref_pmc.template build/gen_objectref
 	$(PERL) -I$(BUILD_DIR)/lib build/gen_objectref_pmc.pl $(PMC_DIR)/objectref_pmc.template \
 		$(PMC_DIR)/objectref.pmc
 
-src/gen_grammar.pir: $(PERL6GRAMMAR) src/parser/grammar.pg src/parser/grammar-oper.pg
+src/gen_grammar.pir: $(PARROT) $(PERL6GRAMMAR) src/parser/grammar.pg src/parser/grammar-oper.pg
 	$(PARROT) $(PARROT_ARGS) $(PERL6GRAMMAR) \
 	    --output=src/gen_grammar.pir \
 	    src/parser/grammar.pg src/parser/grammar-oper.pg
 
-src/gen_actions.pir: $(NQP) $(PCT) src/parser/actions.pm
+src/gen_actions.pir: $(PARROT) $(NQP) $(PCT) src/parser/actions.pm
 	$(PARROT) $(PARROT_ARGS) $(NQP) --output=src/gen_actions.pir \
 	    --encoding=fixed_8 --target=pir src/parser/actions.pm
 
@@ -230,7 +225,7 @@ $(PERL6_GROUP): $(PARROT) $(PMC_SOURCES)
 	cd $(PMC_DIR) && $(BUILD_DYNPMC) linklibs $(PMCS)
 	cd $(PMC_DIR) && $(BUILD_DYNPMC) copy --destination=$(PARROT_DYNEXT) $(PMCS)
 
-src/ops/perl6_ops$(LOAD_EXT) : $(OPS_FILE)
+src/ops/perl6_ops$(LOAD_EXT) : $(PARROT) $(OPS_FILE)
 	@cd $(OPSDIR) && $(BUILD_DYNOPS) generate $(OPSLIB)
 	@cd $(OPSDIR) && $(BUILD_DYNOPS) compile $(OPSLIB)
 	@cd $(OPSDIR) && $(BUILD_DYNOPS) linklibs $(OPSLIB)
@@ -334,3 +329,14 @@ help:
 	@echo "Misc:"
 	@echo "  help:              Print this help message."
 	@echo ""
+
+manifest:
+	echo MANIFEST >MANIFEST
+	git ls-files | $(PERL) -ne '/^\./ || print' >>MANIFEST
+
+release: manifest
+	[ -n "$(VERSION)" ] || ( echo "\nTry 'make release VERSION=yyyymm'\n\n"; exit 1 )
+	[ -d rakudo-$(VERSION) ] || ln -s . rakudo-$(VERSION)
+	$(PERL) -ne 'print "rakudo-$(VERSION)/$$_"' MANIFEST | \
+	    tar -zcv -T - -f rakudo-$(VERSION).tar.gz
+	rm rakudo-$(VERSION)
