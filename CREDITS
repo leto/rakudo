@@ -229,6 +229,10 @@ S: South Lake Tahoe, CA, USA
 N: Mark Grimes
 E: mgrimes@cpan.org
 
+N: Martin Berends
+E: mberends@autoexec.demon.nl
+D: Rakudo patch(es)
+
 N: Matt Diephouse
 U: mdiep
 E: matt@diephouse.com
@@ -289,6 +293,10 @@ N: Stephen Weeks
 U: tene
 D: Minor Rakudo patches
 E: tene@allalone.org
+
+N: Ujwal Reddy Malipeddi
+E: ujwalic@gmail.com
+D: Rakudo patch
 
 N: Vasily Chekalkin
 E: bacek@bacek.com
