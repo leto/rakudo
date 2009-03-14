@@ -75,6 +75,7 @@ BUILTINS_PIR = \
   src/classes/Regex.pir \
   src/classes/Method.pir \
   src/classes/Submethod.pir \
+  src/classes/Multi.pir \
   src/classes/Junction.pir \
   src/classes/Failure.pir \
   src/classes/Exception.pir \
@@ -106,6 +107,7 @@ BUILTINS_PIR = \
   src/builtins/traits.pir \
 
 SETTING = \
+  src/setting/Any-list.pm \
   src/setting/Any-str.pm \
   src/setting/Array.pm \
   src/setting/Bool.pm \
