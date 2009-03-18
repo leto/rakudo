@@ -49,6 +49,8 @@ Returns the $N roots of a Complex number $z.
     r     = z[0]
     theta = z[1]
 
+    $N0 = ln r
+    const[0] =  $N0
     const[1] = theta
     $I0 = 0
   loop:
@@ -57,6 +59,7 @@ Returns the $N roots of a Complex number $z.
     stuff *= $I0
     stuff *= pi
     const += stuff
+    const /= n
     const  = const.'exp'()
     roots[$I0] = const
     $I0 = $I0 + 1
