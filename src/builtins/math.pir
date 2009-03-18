@@ -1,4 +1,4 @@
-## $Id$
+# #$Id$
 
 =head1 NAME
 
@@ -15,6 +15,14 @@ src/builtins/math.pir - Perl6 math functions
 ## TODO: figure out what to get working, in order to uncomment the following
 ## .namespace [ 'Math::Basic' ]
 
+
+.sub 'roots' :multi(_, 'Integer')
+    .param pmc x
+    .param int n
+    .local pmc result
+     result = x.'roots'(n)
+    .return (result)
+.end
 
 =item floor
 
