@@ -1,4 +1,4 @@
-## $Id$
+# #$Id$
 
 =head1 NAME
 
@@ -22,18 +22,34 @@ Returns the $N roots of a Complex number $z.
 =cut
 
 
-.sub 'roots'
+.sub 'roots' :multi(_)
     .param pmc z
     .param int n
     .local num r
     .local num theta
     .local pmc roots
+    .local pmc const
+    .local pmc stuff
+    .local num pi
 
+    pi    = 3.14159
     roots = new 'FixedPMCArray'
+    const = new 'Complex'
+    stuff = new 'Complex'
+    roots = n
+    r     = z[0]
+    theta = z[1]
+
+    const[1] = theta
     $I0 = 0
   loop:
     unless $I0 < n goto done
-    roots[$I0] = 5
+    stuff = 2
+    stuff *= $I0
+    stuff *= pi
+    const += stuff
+    const  = const.'exp'()
+    roots[$I0] = const
     $I0 = $I0 + 1
     goto loop
   done:
