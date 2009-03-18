@@ -15,6 +15,30 @@ src/builtins/math.pir - Perl6 math functions
 ## TODO: figure out what to get working, in order to uncomment the following
 ## .namespace [ 'Math::Basic' ]
 
+=item roots
+
+Returns the $N roots of a Complex number $z.
+
+=cut
+
+
+.sub 'roots'
+    .param pmc z
+    .param int n
+    .local num r
+    .local num theta
+    .local pmc roots
+
+    roots = new 'FixedPMCArray'
+    $I0 = 0
+  loop:
+    unless $I0 < n goto done
+    roots[$I0] = 5
+    $I0 = $I0 + 1
+    goto loop
+  done:
+    .return (roots)
+.end
 
 =item floor
 
