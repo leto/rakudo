@@ -49,20 +49,20 @@ Returns the $N roots of a Complex number $z.
     r     = z[0]
     theta = z[1]
 
-    $N0 = ln r
-    const[0] =  $N0
-    const[1] = theta
+    $N0      = ln r
+    const[0] = $N0
     $I0 = 0
   loop:
-    unless $I0 < n goto done
+    if $I0 >= n goto done
     stuff = 2
     stuff *= $I0
     stuff *= pi
+    stuff += theta
     const += stuff
     const /= n
     const  = const.'exp'()
     roots[$I0] = const
-    $I0 = $I0 + 1
+    inc $I0
     goto loop
   done:
     .return (roots)
