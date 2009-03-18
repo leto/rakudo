@@ -21,8 +21,17 @@ Returns the $N roots of a Complex number $z.
 
 =cut
 
+.sub 'roots' :multi(_, 'Integer')
+    .param num x
+    .param int n
+    .local pmc roots
+    roots = new 'FixedPMCArray'
+    roots = n
+  done:
+    .return (roots)
+.end
 
-.sub 'roots' :multi(_)
+.sub 'roots' :multi('Complex', 'Integer')
     .param pmc z
     .param int n
     .local num r
