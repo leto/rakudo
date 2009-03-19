@@ -25,8 +25,37 @@ Returns the $N roots of a Complex number $z.
     .param num x
     .param int n
     .local pmc roots
+    .local num pi
+    .local num z
+    .local num frac
+    pi    = 3.14159
     roots = new 'FixedPMCArray'
     roots = n
+
+  if n > 0 goto positive
+    .return ('NaN')
+  positive:
+  if n > 1 goto general
+    roots[0] = x
+    goto done
+  general:
+    div $N0, 1, n
+    frac = $N0
+    $N1 = pow x, frac
+    $P2 = new 'Complex'
+    $N3 = $N0
+    $N3 *= 2
+    $N3 *= pi
+    $I0 = 0
+ loop:
+   if $I0 >= n goto done
+    $N3 *= $I0
+    $P2[1] = $N3
+    $P2 = $P2.'exp'()
+    $P2 *= $N1
+    roots[$I0] = $N3
+    inc $I0
+    goto loop
   done:
     .return (roots)
 .end
@@ -48,16 +77,19 @@ Returns the $N roots of a Complex number $z.
     roots = n
     r     = z[0]
     theta = z[1]
+    stuff[1] = theta
 
     $N0      = ln r
-    const[0] = $N0
+    stuff[0] = $N0
     $I0 = 0
   loop:
     if $I0 >= n goto done
-    stuff = 2
-    stuff *= $I0
-    stuff *= pi
-    stuff += theta
+    $P0   *= $I0
+    $P0   *= 2
+    $P0   *= pi
+    $P2    = stuff[1]
+    $P2    += $P0
+    stuff[1] = $P2
     const += stuff
     const /= n
     const  = const.'exp'()
