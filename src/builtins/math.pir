@@ -28,9 +28,12 @@ Returns the $N roots of a Complex number $z.
     .local num pi
     .local num z
     .local num frac
-    pi    = 3.14159
+    pi    = 3.1415926
     roots = new 'FixedPMCArray'
     roots = n
+
+#    $P5 = new 'Complex'
+#    $P5[1] = 1
 
   if n > 0 goto positive
     .return ('NaN')
@@ -41,19 +44,23 @@ Returns the $N roots of a Complex number $z.
   general:
     div $N0, 1, n
     frac = $N0
-    $N1 = pow x, frac
-    $P2 = new 'Complex'
-    $N3 = $N0
-    $N3 *= 2
-    $N3 *= pi
-    $I0 = 0
+    $N4  = abs x
+    $N1  = pow $N4, frac
+    $I0  = 0
  loop:
    if $I0 >= n goto done
+    $P2 = new 'Complex'
+    $N3 = frac
+    $N3 *= 2
+    $N3 *= pi
     $N3 *= $I0
     $P2[1] = $N3
     $P2 = $P2.'exp'()
     $P2 *= $N1
-    roots[$I0] = $N3
+    if x > 0 goto assign
+#    $P2 *= $P5
+  assign:
+    roots[$I0] = $P2
     inc $I0
     goto loop
   done:
