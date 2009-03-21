@@ -191,12 +191,11 @@ error.
      x = self
      $P0 = new 'ResizablePMCArray'
      $P0 = get_hll_global $P0, 'roots'
-     say "P0="
-     say $P0
+     $P1 = $P0[0]
      say "x="
      say x
      say "result="
-     result = $P0(x,n)
+     result = $P1(x,n)
      say result
      say "returning result"
     .return (result)
