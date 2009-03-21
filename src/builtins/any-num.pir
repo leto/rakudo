@@ -184,6 +184,15 @@ error.
 
 =cut
 
+.sub 'roots' :method :multi(I)
+    .param num n
+    .local pmc x
+    .local pmc result
+     x = self
+     result = 'roots'(x,n)
+    .return (result)
+.end
+
 .sub 'unpolar' :method
     .param num angle
     .local num mag

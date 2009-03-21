@@ -36,7 +36,9 @@ Returns the $N roots of a Complex number $z.
 #    $P5[1] = 1
 
   if n > 0 goto positive
-    .return ('NaN')
+    roots = 1
+    roots[0] = 'NaN'
+    goto done
   positive:
   if n > 1 goto general
     roots[0] = x
