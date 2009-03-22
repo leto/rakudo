@@ -190,14 +190,10 @@ error.
     .local pmc result
      x = self
      $P0 = new 'ResizablePMCArray'
+     # this returns multiple functions due to :multi
      $P0 = get_hll_global $P0, 'roots'
      $P1 = $P0[0]
-     say "x="
-     say x
-     say "result="
      result = $P1(x,n)
-     say result
-     say "returning result"
     .return (result)
 .end
 

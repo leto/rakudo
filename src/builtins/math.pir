@@ -30,11 +30,7 @@ Returns the $N roots of a Complex number $z.
     .local num frac
     pi    = 3.1415926
     roots = new 'FixedPMCArray'
-    roots = n
-
-#    $P5 = new 'Complex'
-#    $P5[1] = 1
-
+    roots = n                   # fix array size to n
   if n > 0 goto positive
     roots = 1
     roots[0] = 'NaN'
@@ -46,21 +42,25 @@ Returns the $N roots of a Complex number $z.
   general:
     div $N0, 1, n
     frac = $N0
-    $N4  = abs x
-    $N1  = pow $N4, frac
+    $N4  = abs x                # if x <0 we multiply by i later on
+    $N1  = pow $N4, frac        # abs(x)^(1/n)
     $I0  = 0
  loop:
    if $I0 >= n goto done
-    $P2 = new 'Complex'
+    $P2 = new 'Complex'         # this can surely be optimized
     $N3 = frac
     $N3 *= 2
     $N3 *= pi
     $N3 *= $I0
     $P2[1] = $N3
+    $N5 = $P2[1]
+    if x > 0 goto no_shift
+    div $N4, pi, 2              # adding i pi/2 in exp()
+    $N5 += $N4                  # since exp(i pi/2) = i
+    $P2[1] = $N5                # which is equivalent to multiplying by i
+  no_shift:
     $P2 = $P2.'exp'()
     $P2 *= $N1
-    if x > 0 goto assign
-#    $P2 *= $P5
   assign:
     roots[$I0] = $P2
     inc $I0
