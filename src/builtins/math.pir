@@ -17,7 +17,9 @@ src/builtins/math.pir - Perl6 math functions
 
 =item roots
 
-Returns the $N roots of a Complex number $z.
+ our Array multi Num::roots ( Complex $z, Int $n )
+
+Returns an Array consisting of the $n roots of a Complex number $z.
 
 =cut
 
@@ -26,7 +28,6 @@ Returns the $N roots of a Complex number $z.
     .param int n
     .local pmc roots
     .local num pi
-    .local num z
     .local num frac
     pi    = 3.1415926
     roots = new 'FixedPMCArray'
