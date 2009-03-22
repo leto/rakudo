@@ -30,12 +30,12 @@ Returns the $N roots of a Complex number $z.
     .local num frac
     pi    = 3.1415926
     roots = new 'FixedPMCArray'
-    roots = n                   # fix array size to n
   if n > 0 goto positive
     roots = 1
     roots[0] = 'NaN'
     goto done
   positive:
+    roots = n                   # fix array size to n
   if n > 1 goto general
     roots[0] = x
     goto done
