@@ -28,7 +28,6 @@ Returns an Array consisting of the $n roots of a Complex number $z.
     .param int n
     .local pmc roots
     .local num pi
-    .local num frac
     pi    = 3.1415926
     roots = new 'FixedPMCArray'
   if n > 0 goto positive
@@ -42,14 +41,13 @@ Returns an Array consisting of the $n roots of a Complex number $z.
     goto done
   general:
     div $N0, 1, n
-    frac = $N0
     $N4  = abs x                # if x <0 we multiply by i later on
-    $N1  = pow $N4, frac        # abs(x)^(1/n)
+    $N1  = pow $N4, $N0         # abs(x)^(1/n)
     $I0  = 0
  loop:
    if $I0 >= n goto done
     $P2 = new 'Complex'         # this can surely be optimized
-    $N3 = frac
+    $N3 = $N0
     $N3 *= 2
     $N3 *= pi
     $N3 *= $I0
