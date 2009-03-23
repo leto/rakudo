@@ -33,37 +33,36 @@ where ($r,$theta) = $z.polar .
 
 =cut
 
-# currently this code only works when x is real
 .sub 'roots' :multi(_, 'Integer')
     .param pmc x
     .param int n
     .local pmc roots
     .local num pi, r, theta
-    pi    = 3.1415926
-    roots = new 'FixedPMCArray'
+    pi       = 3.1415926
+    roots    = new 'FixedPMCArray'
   if n > 0 goto positive
-    roots = 1
+    roots    = 1
     roots[0] = 'NaN'
     goto done
   positive:
-    roots = n                   # fix array size to n
+    roots    = n                   # fix array size to n
   if n > 1 goto general
     roots[0] = x
     goto done
   general:
     div $N0, 1, n
-    $I0  = 0
-    $I1  = isa x, 'Complex'
+    $I0   = 0
+    $I1   = isa x, 'Complex'
   unless $I1 goto real
-    $N6 = x[0]
-    $N7 = x[1]
+    $N6   = x[0]
+    $N7   = x[1]
     theta = atan $N7, $N6         # angle of polar representation
-    $N6 *= $N6
-    $N7 *= $N7
-    $N8 = $N6 + $N7
-    $N4 = sqrt $N8
-    r   = $N4
-    $N1  = pow $N4, $N0         # abs(x)^(1/n)
+    $N6  *= $N6
+    $N7  *= $N7
+    $N8   = $N6 + $N7
+    $N4   = sqrt $N8             # radius of polar representation
+    r     = $N4
+    $N1   = pow $N4, $N0         # abs(x)^(1/n)
     goto loop
  real:
     $N4  = x
@@ -71,23 +70,23 @@ where ($r,$theta) = $z.polar .
     $N1  = pow $N4, $N0         # abs(x)^(1/n)
  loop:
    if $I0 >= n goto done
-    $P2 = new 'Complex'         # this can surely be optimized
-    $N3 = $N0
-    $N3 *= 2
-    $N3 *= pi
-    $N3 *= $I0
+    $P2    = new 'Complex'         # this can surely be optimized
+    $N3    = $N0
+    $N3   *= 2
+    $N3   *= pi
+    $N3   *= $I0
     $P2[1] = $N3
     $N5 = $P2[1]
-  if $I1 == 0 goto check
-    $N8 = $N0
-    $N8 *= theta                # theta/n
-    $N5 += $N8
-    goto no_shift
-  check:
-    if x > 0 goto no_shift
+  if $I1 == 0 goto multiply_by_i
+    $N8    = $N0
+    $N8   *= theta                # theta/n
+    $N5   += $N8
+    goto exponentiate
+  multiply_by_i:
+    if x > 0 goto exponentiate
     div $N4, pi, 2              # adding i pi/2 in exp(), since exp(i pi/2) = i
-    $N5 += $N4                  #  which is equivalent to multiplying by i
-  no_shift:
+    $N5 += $N4                  # which is equivalent to multiplying by i
+  exponentiate:
     $P2[1] = $N5
     $P2    = $P2.'exp'()
     $P2   *= $N1
