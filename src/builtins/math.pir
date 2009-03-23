@@ -38,7 +38,7 @@ where ($r,$theta) = $z.polar .
     .param int n
     .local pmc roots
     .local num pi, r, theta
-    pi       = 3.1415926
+    pi       = 3.141592653589793
     roots    = new 'FixedPMCArray'
   if n > 0 goto positive
     roots    = 1
@@ -75,8 +75,8 @@ where ($r,$theta) = $z.polar .
     $N3   *= 2
     $N3   *= pi
     $N3   *= $I0
-    $P2[1] = $N3
-    $N5 = $P2[1]
+    $P2[1] = $N3                   # 2*$I0*pi/n
+    $N5    = $P2[1]
   if $I1 == 0 goto multiply_by_i
     $N8    = $N0
     $N8   *= theta                # theta/n

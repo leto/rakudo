@@ -186,14 +186,12 @@ error.
 
 .sub 'roots' :method
     .param num n
-    .local pmc x
-    .local pmc result
-     x = self
+    .local pmc x, result
      $P0 = new 'ResizablePMCArray'
      # this returns multiple functions due to :multi
      $P0 = get_hll_global $P0, 'roots'
      $P1 = $P0[0]
-     result = $P1(x,n)
+     result = $P1(self,n)
     .return (result)
 .end
 
