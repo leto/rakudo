@@ -19,10 +19,21 @@ src/builtins/math.pir - Perl6 math functions
 
  our Array multi Num::roots ( Complex $z, Int $n )
 
-Returns an Array consisting of the $n roots of a Complex number $z.
+Returns an Array consisting of the $n roots of a Complex number $z. For any
+complex number $z there are a set of $n numbers such that $r ** $n = $z. These
+can be written in terms of the complex logarithm:
+
+exp[1/$n*(Log($z)]
+
+which is equal to
+
+exp[1/$n*(log($r)+i*($theta + 2*k*pi))] where k = 0, ..., n-1
+
+where ($r,$theta) = $z.polar .
 
 =cut
 
+# currently this code only works when x is real
 .sub 'roots' :multi(_, 'Integer')
     .param num x
     .param int n
