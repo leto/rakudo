@@ -46,7 +46,7 @@ where ($r,$theta) = $z.polar .
     roots[0] = 'NaN'
     goto done
   positive:
-    roots    = n                   # fix array size to n
+    roots    = n                # fix array size to n
   if n > 1 goto general
     roots[0] = x
     goto done
@@ -57,39 +57,39 @@ where ($r,$theta) = $z.polar .
   unless $I1 goto real
     $N6   = x[0]
     $N7   = x[1]
-    theta = atan $N7, $N6         # angle of polar representation
+    theta = atan $N7, $N6       # angle of polar representation
     $N6  *= $N6
     $N7  *= $N7
     $N8   = $N6 + $N7
-    r     = sqrt $N8             # radius of polar representation
-    $N1   = pow r, $N0           # r^(1/n)
+    r     = sqrt $N8            # radius of polar representation
+    $N1   = pow r, $N0          # r^(1/n)
     goto loop
  real:
     $N4  = x
-    $N4  = abs $N4              # if x <0 we multiply by i later on
+    $N4  = abs $N4              # if x < 0 we rotate by exp(i pi/n) later on
     $N1  = pow $N4, $N0         # abs(x)^(1/n)
  loop:
    if $I0 >= n goto done
-    $P2    = new 'Complex'         # this can surely be optimized
+    $P2    = new 'Complex'      # this can surely be optimized
     $N3    = $N0
     $N3   *= 2
     $N3   *= pi
     $N3   *= $I0
-    $P2[1] = $N3                   # 2*$I0*pi/n
+    $P2[1] = $N3                # 2*$I0*pi/n
     $N5    = $P2[1]
-  if $I1 == 0 goto multiply_by_i
+  if $I1 == 0 goto rotate
     $N8    = $N0
-    $N8   *= theta                # theta/n
+    $N8   *= theta              # theta/n
     $N5   += $N8
     goto exponentiate
-  multiply_by_i:
+ rotate:                        # we must rotate answer since we factored out (-1)^(1/n)
     if x > 0 goto exponentiate
-    div $N4, pi, 2              # adding i pi/2 in exp(), since exp(i pi/2) = i
-    $N5 += $N4                  # which is equivalent to multiplying by i
+    div $N4, pi, n              # adding i pi/n in exponent
+    $N5 += $N4                  # since exp(i pi/n) = (-1)^(1/n)
   exponentiate:
     $P2[1]     = $N5
     $P2        = $P2.'exp'()
-    $P2       *= $N1
+    $P2       *= $N1            # r^(1/n)*exp(i/n(theta + 2*k*pi))
     roots[$I0] = $P2
     inc $I0
     goto loop
