@@ -35,7 +35,7 @@ where ($r,$theta) = $z.polar .
 
 # currently this code only works when x is real
 .sub 'roots' :multi(_, 'Integer')
-    .param num x
+    .param pmc x
     .param int n
     .local pmc roots
     .local num pi
@@ -52,9 +52,25 @@ where ($r,$theta) = $z.polar .
     goto done
   general:
     div $N0, 1, n
-    $N4  = abs x                # if x <0 we multiply by i later on
-    $N1  = pow $N4, $N0         # abs(x)^(1/n)
+    #say "x="
+    #say x
     $I0  = 0
+    $I1  = isa x, 'Complex'
+    #say "I1="
+    #say $I1
+  unless $I1 goto real
+    $N6 = x[0]
+    $N6 *= $N6
+    $N7 = x[1]
+    $N7 *= $N7
+    $N8 = $N6 + $N7
+    $N4 = sqrt $N8
+    $N1  = pow $N4, $N0         # abs(x)^(1/n)
+    goto loop
+ real:
+    $N4  = x
+    $N4  = abs $N4              # if x <0 we multiply by i later on
+    $N1  = pow $N4, $N0         # abs(x)^(1/n)
  loop:
    if $I0 >= n goto done
     $P2 = new 'Complex'         # this can surely be optimized
@@ -64,6 +80,7 @@ where ($r,$theta) = $z.polar .
     $N3 *= $I0
     $P2[1] = $N3
     $N5 = $P2[1]
+    if $I1 goto no_shift
     if x > 0 goto no_shift
     div $N4, pi, 2              # adding i pi/2 in exp()
     $N5 += $N4                  # since exp(i pi/2) = i
