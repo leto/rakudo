@@ -52,12 +52,8 @@ where ($r,$theta) = $z.polar .
     goto done
   general:
     div $N0, 1, n
-    #say "x="
-    #say x
     $I0  = 0
     $I1  = isa x, 'Complex'
-    #say "I1="
-    #say $I1
   unless $I1 goto real
     $N6 = x[0]
     $N6 *= $N6
@@ -80,7 +76,16 @@ where ($r,$theta) = $z.polar .
     $N3 *= $I0
     $P2[1] = $N3
     $N5 = $P2[1]
-    if $I1 goto no_shift
+  if $I1 == 0 goto check
+    say "I1 is complex ="
+    say $I1
+    $N6 = x[1]
+    $N7 = x[0]
+    $N8 = atan $N6, $N7         # angle of polar representation
+    $N8 *= $N0                  # theta/n
+    $N5 += $N8                  # rotate by angle theta/n
+    goto no_shift
+  check:
     if x > 0 goto no_shift
     div $N4, pi, 2              # adding i pi/2 in exp()
     $N5 += $N4                  # since exp(i pi/2) = i
