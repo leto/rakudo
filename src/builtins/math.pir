@@ -77,21 +77,21 @@ where ($r,$theta) = $z.polar .
     $N3   *= $I0
     $P2[1] = $N3                # 2*$I0*pi/n
     $N5    = $P2[1]
-  if $I1 == 0 goto rotate
+  unless $I1 goto rotate_negative_reals
     $N8    = $N0
     $N8   *= theta              # theta/n
     $N5   += $N8                # 2*$I0*pi/n + theta/n
     goto exponentiate
- rotate:                        # we must rotate answer since we factored out (-1)^(1/n)
+ rotate_negative_reals:         # we must rotate answer since we factored out (-1)^(1/n)
     if x > 0 goto exponentiate
     div $N4, pi, n
     $N5 += $N4                  # exp( i pi / n ) = (-1)^(1/n) (principle root)
   exponentiate:
     $N9        = $N0
-    $N9       *= $N1             # 1/n*ln(r)
+    $N9       *= $N1            # 1/n*ln(r)
     $P2[0]     = $N9
     $P2[1]     = $N5
-    $P2        = $P2.'exp'()     # exp(1/n*(ln(r)+i*(theta + 2*k*pi)))
+    $P2        = $P2.'exp'()    # exp(1/n*(ln(r)+i*(theta + 2*k*pi)))
     roots[$I0] = $P2
     inc $I0
     goto loop
