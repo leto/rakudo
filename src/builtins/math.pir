@@ -87,10 +87,9 @@ where ($r,$theta) = $z.polar .
     div $N4, pi, 2              # adding i pi/2 in exp(), since exp(i pi/2) = i
     $N5 += $N4                  # which is equivalent to multiplying by i
   exponentiate:
-    $P2[1] = $N5
-    $P2    = $P2.'exp'()
-    $P2   *= $N1
-  assign:
+    $P2[1]     = $N5
+    $P2        = $P2.'exp'()
+    $P2       *= $N1
     roots[$I0] = $P2
     inc $I0
     goto loop
