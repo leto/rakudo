@@ -85,12 +85,12 @@ where ($r,$theta) = $z.polar .
     goto no_shift
   check:
     if x > 0 goto no_shift
-    div $N4, pi, 2              # adding i pi/2 in exp()
-    $N5 += $N4                  # since exp(i pi/2) = i
-    $P2[1] = $N5                # which is equivalent to multiplying by i
+    div $N4, pi, 2              # adding i pi/2 in exp(), since exp(i pi/2) = i
+    $N5 += $N4                  #  which is equivalent to multiplying by i
   no_shift:
-    $P2 = $P2.'exp'()
-    $P2 *= $N1
+    $P2[1] = $N5
+    $P2    = $P2.'exp'()
+    $P2   *= $N1
   assign:
     roots[$I0] = $P2
     inc $I0
