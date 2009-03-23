@@ -38,7 +38,7 @@ where ($r,$theta) = $z.polar .
     .param pmc x
     .param int n
     .local pmc roots
-    .local num pi
+    .local num pi, r, theta
     pi    = 3.1415926
     roots = new 'FixedPMCArray'
   if n > 0 goto positive
@@ -56,11 +56,13 @@ where ($r,$theta) = $z.polar .
     $I1  = isa x, 'Complex'
   unless $I1 goto real
     $N6 = x[0]
-    $N6 *= $N6
     $N7 = x[1]
+    theta = atan $N7, $N6         # angle of polar representation
+    $N6 *= $N6
     $N7 *= $N7
     $N8 = $N6 + $N7
     $N4 = sqrt $N8
+    r   = $N4
     $N1  = pow $N4, $N0         # abs(x)^(1/n)
     goto loop
  real:
@@ -77,13 +79,9 @@ where ($r,$theta) = $z.polar .
     $P2[1] = $N3
     $N5 = $P2[1]
   if $I1 == 0 goto check
-    say "I1 is complex ="
-    say $I1
-    $N6 = x[1]
-    $N7 = x[0]
-    $N8 = atan $N6, $N7         # angle of polar representation
-    $N8 *= $N0                  # theta/n
-    $N5 += $N8                  # rotate by angle theta/n
+    $N8 = $N0
+    $N8 *= theta                # theta/n
+    $N5 += $N8
     goto no_shift
   check:
     if x > 0 goto no_shift
