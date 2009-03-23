@@ -68,46 +68,6 @@ Returns an Array consisting of the $n roots of a Complex number $z.
     .return (roots)
 .end
 
-.sub 'roots' :multi('Complex', 'Integer')
-    .param pmc z
-    .param int n
-    .local num r
-    .local num theta
-    .local pmc roots
-    .local pmc const
-    .local pmc stuff
-    .local num pi
-
-    pi    = 3.14159
-    roots = new 'FixedPMCArray'
-    const = new 'Complex'
-    stuff = new 'Complex'
-    roots = n
-    r     = z[0]
-    theta = z[1]
-    stuff[1] = theta
-
-    $N0      = ln r
-    stuff[0] = $N0
-    $I0 = 0
-  loop:
-    if $I0 >= n goto done
-    $P0   *= $I0
-    $P0   *= 2
-    $P0   *= pi
-    $P2    = stuff[1]
-    $P2    += $P0
-    stuff[1] = $P2
-    const += stuff
-    const /= n
-    const  = const.'exp'()
-    roots[$I0] = const
-    inc $I0
-    goto loop
-  done:
-    .return (roots)
-.end
-
 =item floor
 
  our Int multi Num::floor ( Num $x )
