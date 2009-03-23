@@ -62,13 +62,11 @@ where ($r,$theta) = $z.polar .
     $N7  *= $N7
     $N8   = $N6 + $N7
     r     = sqrt $N8            # radius of polar representation
-#    $N1   = pow r, $N0          # r^(1/n)
     $N1   = ln r
     goto loop
  real:
     $N4  = x
     $N4  = abs $N4              # if x < 0 we rotate by exp(i pi/n) later on
-#    $N1  = pow $N4, $N0         # abs(x)^(1/n)
     $N1   = ln $N4              # ln(abs(x)) = ln(r)
  loop:
    if $I0 >= n goto done
@@ -86,17 +84,14 @@ where ($r,$theta) = $z.polar .
     goto exponentiate
  rotate:                        # we must rotate answer since we factored out (-1)^(1/n)
     if x > 0 goto exponentiate
-    $N5   += pi                 # theta = pi for negative real numbers
-#    div $N4, pi, n              # adding i pi/n in exponent
-#    $N5 += $N4                  # since exp(i pi/n) = (-1)^(1/n)
+    div $N4, pi, n
+    $N5 += $N4                  # exp( i pi / n ) = (-1)^(1/n) (principle root)
   exponentiate:
-    $P2[0]     = $N0
-    $N9        = $P2[0]
+    $N9        = $N0
     $N9       *= $N1             # 1/n*ln(r)
     $P2[0]     = $N9
     $P2[1]     = $N5
     $P2        = $P2.'exp'()     # exp(1/n*(ln(r)+i*(theta + 2*k*pi)))
-#    $P2       *= $N1            # r^(1/n)*exp(i/n(theta + 2*k*pi))
     roots[$I0] = $P2
     inc $I0
     goto loop
