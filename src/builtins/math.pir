@@ -38,7 +38,8 @@ where ($r,$theta) = $z.polar .
     .param int n
     .local pmc roots
     .local num pi, r, theta
-    pi       = 3.141592653589793
+    pi       = atan 1
+    pi      *= 4
     roots    = new 'FixedPMCArray'
   if n > 0 goto positive
     roots    = 1
@@ -60,9 +61,8 @@ where ($r,$theta) = $z.polar .
     $N6  *= $N6
     $N7  *= $N7
     $N8   = $N6 + $N7
-    $N4   = sqrt $N8             # radius of polar representation
-    r     = $N4
-    $N1   = pow $N4, $N0         # abs(x)^(1/n)
+    r     = sqrt $N8             # radius of polar representation
+    $N1   = pow r, $N0           # r^(1/n)
     goto loop
  real:
     $N4  = x
