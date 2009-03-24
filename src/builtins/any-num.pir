@@ -184,15 +184,88 @@ error.
 
 =cut
 
+=item roots
+
+ our Array multi Num::roots ( Complex $z, Int $n )
+
+Returns an Array consisting of the $n roots of a Complex number $z. For any
+complex number $z there are a set of $n numbers such that $r ** $n = $z. These
+can be written in terms of the complex logarithm:
+
+exp[1/$n*(Log($z)]
+
+which is equal to
+
+exp[1/$n*(log($r)+i*($theta + 2*k*pi))] where k = 0, ..., n-1
+
+where ($r,$theta) = $z.polar .
+
+=cut
+
 .sub 'roots' :method
-    .param num n
-    .local pmc x, result
-     $P0 = new 'ResizablePMCArray'
-     # this returns multiple functions due to :multi
-     $P0 = get_hll_global $P0, 'roots'
-     $P1 = $P0[0]
-     result = $P1(self,n)
-    .return (result)
+    .param int n
+    .local num pi, r, theta
+    .local pmc x, result, roots
+    x        = self
+    pi       = atan 1
+    pi      *= 4
+    roots    = new 'FixedPMCArray'
+  if n > 0 goto positive
+    roots    = 1                # single element array
+    roots[0] = 'NaN'
+    goto done
+  positive:
+    roots    = n                # fix array size to n
+  if n > 1 goto general
+    roots[0] = x
+    goto done
+  general:
+    div $N0, 1, n
+    $I0   = 0
+    $I1   = isa x, 'Complex'
+  unless $I1 goto real
+    $N6   = x[0]
+    $N7   = x[1]
+    theta = atan $N7, $N6       # angle of polar representation
+    $N6  *= $N6
+    $N7  *= $N7
+    $N8   = $N6 + $N7
+    r     = sqrt $N8            # radius of polar representation
+    $N1   = ln r
+    goto loop
+ real:
+    $N4  = x
+    $N4  = abs $N4              # if x < 0 we rotate by exp(i pi/n) later on
+    $N1   = ln $N4              # ln(abs(x)) = ln(r)
+ loop:
+   if $I0 >= n goto done
+    $P2    = new 'Complex'      # this can surely be optimized
+    $N3    = $N0
+    $N3   *= 2
+    $N3   *= pi
+    $N3   *= $I0
+    $P2[1] = $N3                # 2*$I0*pi/n
+    $N5    = $P2[1]
+  unless $I1 goto rotate_negative_reals
+    $N8    = $N0
+    $N8   *= theta              # theta/n
+    $N5   += $N8                # 2*$I0*pi/n + theta/n
+    goto exponentiate
+ rotate_negative_reals:         # we must rotate answer since we factored out (-1)^(1/n)
+    if x > 0 goto exponentiate
+    div $N4, pi, n
+    $N5 += $N4                  # exp( i pi / n ) = (-1)^(1/n) (principle root)
+  exponentiate:
+    $N9        = $N0
+    $N9       *= $N1            # 1/n*ln(r)
+    $P2[0]     = $N9
+    $P2[1]     = $N5
+    $P2        = $P2.'exp'()    # exp(1/n*(ln(r)+i*(theta + 2*k*pi)))
+    roots[$I0] = $P2
+    inc $I0
+    goto loop
+  done:
+    .return (roots)
 .end
 
 .sub 'unpolar' :method
