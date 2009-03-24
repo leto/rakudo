@@ -201,10 +201,10 @@ exp[1/$n*(Log($z)]
 
 which is equal to
 
-$w_k = exp[1/$n*(log($r)+i*($theta + 2*k*pi))] where k = 0, ..., n-1
+$w_k = exp[1/$n*(log($r)+i*($theta + 2*k*pi))] where k = 0,1,2,..., n-1
 
 where ($r,$theta) = $z.polar . The angle $theta returned is always in the
-interval -pi <= theta <= pi.
+interval -pi <= $theta <= pi .
 
 =cut
 
