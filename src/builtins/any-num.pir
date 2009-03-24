@@ -188,17 +188,23 @@ error.
 
  our Array multi Num::roots ( Complex $z, Int $n )
 
-Returns an Array consisting of the $n roots of a Complex number $z. For any
-complex number $z there are a set of $n numbers such that $r ** $n = $z. These
-can be written in terms of the complex logarithm:
+Returns an Array consisting of the $n roots of a Complex number $z, where $n is
+a positive integer. For any Complex number $z ( which includes real numbers and
+integers as a subset ) there are a set of $n numbers W such that $w_k ** $n = $z,
+or in set theory notation:
+
+W = { $w_i : $w_i ** $n = $z and 0 <= i <= n-1 } .
+
+These can be written in terms of the multiple-valued complex logarithm:
 
 exp[1/$n*(Log($z)]
 
 which is equal to
 
-exp[1/$n*(log($r)+i*($theta + 2*k*pi))] where k = 0, ..., n-1
+$w_k = exp[1/$n*(log($r)+i*($theta + 2*k*pi))] where k = 0, ..., n-1
 
-where ($r,$theta) = $z.polar .
+where ($r,$theta) = $z.polar . The angle $theta returned is always in the
+interval -pi <= theta <= pi.
 
 =cut
 
