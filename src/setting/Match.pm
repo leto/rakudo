@@ -12,6 +12,8 @@ class Match is also {
                 take " # and for debugging purposes only\n";
             }
             take $sp;
+            take "ast  => {$.ast.perl},\n";
+            take $sp;
             take "text => {$.text.perl},\n";
             take $sp;
             take "from => $.from,\n";
@@ -45,6 +47,32 @@ class Match is also {
             }
             take ' ' x $indent;
             take ")";
+        }
+    }
+
+    multi method ast() {
+        return $(self);
+    }
+
+    multi method caps() {
+        my @caps = @(self), %(self).values;
+        # in regexes like [(.) ...]+, the capture for (.) is a List
+        # flatten that.
+        @caps = @caps.map: { $_ ~~ List ?? @($_) !! $_ };
+        return @caps.sort({ .from });
+    }
+
+    multi method chunks() {
+        my $prev = 0;
+        gather {
+            for @.caps {
+                if .from > $prev {
+                    take self.substr($prev, .from - $prev)
+                }
+                take $_;
+                $prev = $_.to;
+            }
+            take self.substr($prev) if $prev < self.chars;
         }
     }
 }

@@ -7,6 +7,14 @@ class Any is also {
         sprintf($format, self)
     }
 
+    our Str multi method lc is export {
+        return Q:PIR {
+            $S0 = self
+            downcase $S0
+            %r = box $S0
+        }
+    }
+
     our Str multi method lcfirst is export {
         self gt '' ?? self.substr(0,1).lc ~ self.substr(1) !! ""
     }
@@ -38,7 +46,10 @@ class Any is also {
         my $s = ~self;
         if $delimiter eq '' {
             return gather {
-                take $s.substr($_, 1) for 0 .. $s.chars - 1;
+                take $s.substr($_, 1) for 0 .. ($s.chars - 1 min $l - 2);
+                if $l <= $s.chars {
+                    take $s.substr($l - 1 );
+                };
             }
         }
         return gather {
@@ -71,14 +82,47 @@ class Any is also {
         }
     }
 
+    our Str multi method uc is export {
+        return Q:PIR {
+            $S0 = self
+            upcase $S0
+            %r = box $S0
+        }
+    }
+
     our Str multi method ucfirst is export {
         self gt '' ?? self.substr(0,1).uc ~ self.substr(1) !! ""
     }
 
 }
 
-sub split($delimiter, $target) {
-    $target.split($delimiter);
+sub split($delimiter, $target, $limit = *) {
+    $target.split($delimiter, $limit);
+}
+
+# TODO: '$filename as Str' once support for that is in place
+multi sub lines(Str $filename,
+                :$bin = False,
+                :$enc = 'Unicode',
+                :$nl = "\n",
+                :$chomp = True) {
+
+    my $filehandle = open($filename, :r);
+    return lines($filehandle, :$bin, :$enc, :$nl, :$chomp);
+}
+
+sub unpack($template, $target) {
+    $template.trans(/\s+/ => '') ~~ / ((<[Ax]>)(\d+))* /
+        or return (); # unknown syntax
+    my $pos = 0;
+    return gather for $0.values -> $chunk {
+        my ($operation, $count) = $chunk.[0, 1];
+        given $chunk.[0] {
+            when 'A' { take $target.substr($pos, $count); }
+            when 'x' { } # just skip
+        }
+        $pos += $count;
+    }
 }
 
 # vim: ft=perl6

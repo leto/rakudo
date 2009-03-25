@@ -107,7 +107,15 @@ way. Otherwise, it uses .^dispatch from the metaclass.
     .tailcall $P0.'dispatch'(obj, name, pos_args :flat, name_args :flat :named)
 
   foreign:
-    .tailcall obj.name(pos_args :flat, name_args :flat :named)
+    obj = '!DEREF'(obj)
+    # We should be able to just .tailcall. Unfortuantely, Parrot's calling
+    # implementation is a steaming pile of crap and can't even manage to promsie
+    # to put something that does array into $P0 in the following line...which only
+    # exists because calls to METHODs in PMCs don't seem to work with tail calls.
+    ($P0 :slurpy, $P1 :slurpy :named) = obj.name(pos_args :flat, name_args :flat :named)
+    if null $P0 goto no_return
+    .return ($P0 :flat, $P1 :flat :named)
+  no_return:
 .end
 
 
@@ -865,6 +873,18 @@ in an ambiguous multiple dispatch.
   arg_done:
     ns = exportns.'make_namespace'('ALL')
     ns[blockname] = block
+
+    # If it's a multi-sub then we need to export it by default always.
+    $P0 = block.'get_namespace'()
+    block = $P0[blockname]
+    $I0 = isa block, 'MultiSub'
+    unless $I0 goto not_multi
+    ns = exportns['DEFAULT']
+    unless null ns goto have_default
+    ns = exportns.'make_namespace'('DEFAULT')
+  have_default:
+    ns[blockname] = block
+  not_multi:
 .end
 
 
@@ -1138,6 +1158,53 @@ Reblesses a sub into a new type.
     $P0 = new_type.'new'()
     $P0 = typeof $P0
     rebless_subclass sub, $P0
+.end
+
+
+=item !state_var_init
+
+Loads any existing values of state variables for a block.
+
+=cut
+
+.sub '!state_var_init'
+    .local pmc lexpad, state_store, names_it
+    $P0 = new 'ParrotInterpreter'
+    lexpad = $P0['lexpad'; 1]
+    $P0 = $P0['sub'; 1]
+    state_store = getprop '$!state_store', $P0
+    unless null state_store goto have_state_store
+    state_store = new 'Hash'
+    setprop $P0, '$!state_store', state_store
+  have_state_store:
+
+    names_it = iter state_store
+  names_loop:
+    unless names_it goto names_loop_end
+    $S0 = shift names_it
+    $P0 = state_store[$S0]
+    lexpad[$S0] = $P0
+    goto names_loop
+  names_loop_end:
+.end
+
+
+=item !state_var_inited
+
+Takes the name of a state variable and returns true if it's been
+initialized already.
+
+=cut
+
+.sub '!state_var_inited'
+    .param string name
+    $P0 = new 'ParrotInterpreter'
+    $P0 = $P0['sub'; 1]
+    $P0 = getprop '$!state_store', $P0
+    $P0 = $P0[name]
+    $I0 = isnull $P0
+    $I0 = not $I0
+    .return ($I0)
 .end
 
 =back

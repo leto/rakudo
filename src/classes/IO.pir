@@ -19,115 +19,14 @@ This file implements the IO file handle class.
     p6meta.'new_class'('IOIterator', 'parent'=>'Perl6Object', 'attr'=>'$!IO')
 
     $P0 = get_hll_namespace ['IO']
-    '!EXPORT'('lines,readline', 'from'=>$P0)
+    '!EXPORT'('readline', 'from'=>$P0)
 .end
 
 =head2 Methods
 
 =over 4
 
-=item close
-
-Closes the file.
-
-=cut
-
 .namespace ['IO']
-.sub 'close' :method
-    .local pmc pio
-    pio = getattribute self, "$!PIO"
-    close pio
-    .return(1)
-.end
-
-
-=item eof
-
-Tests if we have reached the end of the file.
-
-=cut
-
-.namespace ['IO']
-.sub 'eof' :method
-    .local pmc PIO
-    PIO = getattribute self, "$!PIO"
-    if PIO goto not_eof
-    $P0 = get_hll_global [ 'Bool' ], 'True'
-    .return ($P0)
-  not_eof:
-    $P0 = get_hll_global [ 'Bool' ], 'False'
-    .return ($P0)
-.end
-
-
-=item lines
-
-our List multi method lines (IO $handle:) is export;
-
-Returns all the lines of a file as a (lazy) List regardless of context.
-See also slurp.
-
-=cut
-
-.namespace ['IO']
-.sub 'lines' :method :multi('IO')
-    .local pmc pio, res, chomper
-    pio = getattribute self, "$!PIO"
-    pio = '!DEREF'(pio)
-    res = new 'List'
-    chomper = get_hll_global 'chomp'
-
-  loop:
-    $S0 = pio.'readline'()
-    unless $S0 goto done
-    $S0 = chomper($S0)
-    res.'push'($S0)
-    goto loop
-
-  done:
-    .return (res)
-.end
-
-
-=item print
-
-Writes the given list of items to the file.
-
-=cut
-
-.namespace ['IO']
-.sub 'print' :method
-    .param pmc args            :slurpy
-    .local pmc it
-    .local pmc pio
-    pio = getattribute self, "$!PIO"
-    args = 'list'(args)
-    it = iter args
-  iter_loop:
-    unless it goto iter_end
-    $S0 = shift it
-    print pio, $S0
-    goto iter_loop
-  iter_end:
-    .return (1)
-.end
-
-
-=item printf
-
-Parses a format string and prints formatted output according to it.
-
-=cut
-
-.sub 'printf' :method
-    .param pmc args            :slurpy
-    .local pmc pio
-    pio = getattribute self, "$!PIO"
-    $S0 = 'sprintf'(args :flat)
-    print pio, $S0
-    .return (1)
-.end
-
 
 =item readline
 
@@ -139,37 +38,6 @@ Reads a line from the file handle.
     $P0 = get_hll_global 'IOIterator'
     $P0 = $P0.'new'('IO' => self)
     .return ($P0)
-.end
-
-
-=item say
-
-Writes the given list of items to the file, then a newline character.
-
-=cut
-
-.sub 'say' :method
-    .param pmc list            :slurpy
-    .local pmc pio
-    pio = getattribute self, "$!PIO"
-    self.'print'(list)
-    print pio, "\n"
-    .return (1)
-.end
-
-
-=item slurp
-
-Slurp a file into a string.
-
-=cut
-
-.sub 'slurp' :method
-    .local pmc pio
-    pio = getattribute self, "$!PIO"
-    pio = '!DEREF'(pio)
-    $S0 = pio.'readall'()
-    .return($S0)
 .end
 
 

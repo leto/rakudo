@@ -386,7 +386,8 @@ method use_statement($/) {
         );
         ##  ...and load it immediately to get its BEGIN semantics
         ##  and symbols for the current compilation.
-        use($name);
+        our @?NS;
+        use($name, :import_to(@?NS ?? @?NS[0] !! ''));
     }
     $past := PAST::Stmts.new( :node($/) );
     make $past;
@@ -1210,12 +1211,12 @@ method post_constraint($/) {
 
 
 method parameter($/) {
-    my $var   := $( $<param_var> );
-    my $sigil := $<param_var><sigil>;
+    my $var   := $( $<named_param> ?? $<named_param> !! $<param_var> );
+    my $sigil := $<named_param> ?? $<named_param><param_var><sigil> !! $<param_var><sigil>;
     my $quant := $<quant>;
 
     ##  if it was type a type capture and nothing else, need to make a PAST::Var
-    unless $<param_var> {
+    unless $<param_var> || $<named_param> {
         unless $<type_constraint> == 1 {
             $/.panic("Invalid signature; cannot have two consecutive parameter separators.");
         }
@@ -1231,9 +1232,8 @@ method parameter($/) {
         $var.slurpy( $sigil eq '@' || $sigil eq '%' );
         $var.named( $sigil eq '%' );
     }
-    elsif $<named> eq ':' {          # named
-        $var.named(~$<param_var><identifier>[0]);
-        if $quant ne '!' {      #  required (optional is default)
+    elsif $<named_param> {          # named
+        if $quant ne '!' {          # required (optional is default)
             $var.viviself(container_itype($sigil));
         }
     }
@@ -1304,6 +1304,17 @@ method parameter($/) {
     make $var;
 }
 
+
+method named_param($/) {
+    my $var := $( $<param_var> );
+    if $<name> {
+        $var.named(~$<name>);
+    }
+    else {
+        $var.named(~$<param_var><identifier>[0]);
+    }
+    make $var;
+}
 
 method param_var($/) {
     my $sigil  := ~$<sigil>;
@@ -1767,8 +1778,9 @@ method scope_declarator($/) {
     my $sym   := ~$<sym>;
     my $past  := $( $<scoped> );
     my $scope := 'lexical';
-    if    $sym eq 'our' { $scope := 'package'; }
-    elsif $sym eq 'has' { $scope := 'attribute'; }
+    if    $sym eq 'our'   { $scope := 'package'; }
+    elsif $sym eq 'has'   { $scope := 'attribute'; }
+    elsif $sym eq 'state' { $scope := 'state'; }
 
     #  Private methods get a leading !.
     if $scope eq 'lexical' && $past.isa(PAST::Block)
@@ -1869,11 +1881,21 @@ method scope_declarator($/) {
             $i++;
         }
         if $scope eq 'attribute' {
-            $past.pasttype('null');
             $past<scopedecl> := $scope;
+            $past.pasttype('null');
         }
         elsif +@($past) == 1 { $past := $past[0]; }
         else { $past.name('infix:,'); $past.pasttype('call'); }
+        if $scope eq 'state' {
+            $past<scopedecl> := $scope;
+            unless $block<needs_state_loaded> {
+                $block[0].push(PAST::Op.new(
+                    :pasttype('call'),
+                    :name('!state_var_init')
+                ));
+                $block<needs_state_loaded> := 1;
+            }
+        }
     }
     make $past;
 }
@@ -2471,6 +2493,26 @@ method EXPR($/, $key) {
             @?BLOCK[0][0].push($past);
             $past := PAST::Stmts.new();
         }
+        elsif $lhs<scopedecl> eq 'state' {
+            # State variables - only want to actually do an assignment if
+            # there is no value.
+            $past := PAST::Op.new(
+                :pasttype('unless'),
+                :node($/),
+                PAST::Op.new(
+                    :pasttype('call'),
+                    :name('!state_var_inited'),
+                    $lhs.isa(PAST::Var) ?? $lhs.name() !! $lhs[0].name()
+                ),
+                PAST::Op.new(
+                    :pasttype('call'),
+                    :name('infix:='),
+                    :lvalue(1),
+                    $lhs,
+                    $rhs
+                )
+            );
+        }
         else {
             # Just a normal assignment.
             $past := PAST::Op.new(
@@ -2554,6 +2596,20 @@ method EXPR($/, $key) {
         my $past := $( $/[0] );
         $past.flat(1);
         make $past;
+    }
+    elsif ~$type eq 'infix://=' || ~$type eq 'infix:||=' || ~$type eq 'infix:&&=' {
+        my $lhs := $( $/[0] );
+        my $rhs := $( $/[1] );
+        make PAST::Op.new(
+            :pasttype('call'),
+            :name('infix:='),
+            $lhs,
+            PAST::Op.new($lhs, $rhs, :pasttype(
+                ~$type eq 'infix://=' ?? 'def_or' !!
+                (~$type eq 'infix:||=' ?? 'unless' !!
+                 'if'))
+            )
+        );
     }
     else {
         my $past := PAST::Op.new(

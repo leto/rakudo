@@ -42,6 +42,7 @@ SOURCES = perl6.pir \
   src/parser/expression.pir \
   src/parser/methods.pir \
   src/parser/quote_expression.pir \
+  src/pctextensions/state.pir \
   $(PERL6_GROUP) \
   src/ops/perl6_ops$(LOAD_EXT)
 
@@ -108,10 +109,12 @@ BUILTINS_PIR = \
 
 SETTING = \
   src/setting/Any-list.pm \
+  src/setting/Any-num.pm \
   src/setting/Any-str.pm \
   src/setting/Array.pm \
   src/setting/Bool.pm \
   src/setting/Hash.pm \
+  src/setting/IO.pm \
   src/setting/List.pm \
   src/setting/Match.pm \
   src/setting/Object.pm \
@@ -163,7 +166,7 @@ HARNESS_WITH_FUDGE_JOBS = $(HARNESS_WITH_FUDGE) --jobs
 all: perl6$(EXE)
 
 ##  targets for building a standalone perl6.
-perl6$(EXE): $(PBC_TO_EXE) perl6.pbc
+perl6$(EXE): perl6.pbc
 	$(PBC_TO_EXE) perl6.pbc
 	@win32_libparrot_copy@
 

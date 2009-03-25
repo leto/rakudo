@@ -16,57 +16,13 @@ src/builtins/math.pir - Perl6 math functions
 ## .namespace [ 'Math::Basic' ]
 
 
-=item floor
-
- our Int multi Num::floor ( Num $x )
-
-Returns the highest integer not greater than $x.
-
-=cut
-
-.sub 'floor'
-    .param num n
-    .local int i
-    floor i, n
-    .return (i)
+.sub 'roots' :multi(_, 'Integer')
+    .param pmc x
+    .param int n
+    .local pmc result
+     result = x.'roots'(n)
+    .return (result)
 .end
-
-
-=item ceiling
-
- our Int multi Num::ceiling ( Num $x )
- &Num::ceil ::= &Num::ceiling;
-
-Returns the lowest integer not less than $x.
-
-=cut
-
-.sub 'ceiling'
-    .param num n
-    .local int i
-    ceil i, n
-    .return (i)
-.end
-
-
-=item round
-
- our Int multi Num::round ( Num $x )
- our Int multi Int ( Num $x )
-
-Returns the nearest integer to $x.  The algorithm is floor($x + 0.5).
-(Other rounding algorithms will be given extended names beginning with "round".)
-
-=cut
-
-.sub 'round'
-    .param num n
-    .local int i
-    n += 0.5
-    floor i, n
-    .return (i)
-.end
-
 
 =item sign
 
