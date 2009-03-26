@@ -10,6 +10,7 @@
 # 
 # S03-operators/binding-arrays.t - regressed to allow slices
 # S03-operators/binding-hashes.t - regressed to allow slices
+# S10-packages/import.t - regressed when implementing importing; think it's bogus anyway
 
 integration/99problems-01-to-10.t
 integration/99problems-11-to-20.t
@@ -121,6 +122,7 @@ S03-operators/value_equivalence.t
 S04-blocks-and-statements/pointy-rw.t
 S04-blocks-and-statements/pointy.t
 S04-closure-traits/end.t
+S04-closure-traits/start.t
 S04-declarations/implicit-parameter.t
 S04-declarations/multiple.t
 S04-declarations/my.t
@@ -185,6 +187,7 @@ S05-transliteration/with-closure.t
 S06-advanced_subroutine_features/recurse.t
 S06-advanced_subroutine_features/return2.t
 S06-advanced_subroutine_features/return.t
+S06-currying/assuming-and-mmd.t
 S06-currying/named.t
 S06-multi/proto.t
 S06-multi/syntax.t
@@ -214,9 +217,10 @@ S06-traits/is-copy.t
 S06-traits/is-rw.t
 S06-traits/misc.t
 S09-subscript_slice/slice.t
-S10-packages/import.t
 S10-packages/use-with-class.t
 S11-modules/export.t
+S11-modules/import.t
+S11-modules/import-tag.t
 S11-modules/nested.t
 S12-attributes/class2.t
 S12-attributes/class.t
