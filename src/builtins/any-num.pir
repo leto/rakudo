@@ -195,31 +195,25 @@ interval -pi <= $theta <= pi .
     $I0   = 0
     $I1   = isa x, 'Complex'
   unless $I1 goto real
-    $N6   = x[0]
-    $N7   = x[1]
-    theta = atan $N7, $N6       # angle of polar representation
-    $N6  *= $N6
-    $N7  *= $N7
-    $N8   = $N6 + $N7
-    r     = sqrt $N8            # radius of polar representation
+    $P0   = x.'polar'()
+    r     = $P0[0]
+    theta = $P0[1]
     $N1   = ln r
     goto loop
  real:
     $N4  = x
     $N4  = abs $N4              # if x < 0 we rotate by exp(i pi/n) later on
-    $N1   = ln $N4              # ln(abs(x)) = ln(r)
+    $N1  = ln $N4               # ln(abs(x)) = ln(r)
  loop:
    if $I0 >= n goto done
     $P2    = new 'Complex'      # this can surely be optimized
-    $N3    = $N0
+    $N3    = $I0 * $N0
     $N3   *= 2
     $N3   *= pi
-    $N3   *= $I0
     $P2[1] = $N3                # 2*$I0*pi/n
     $N5    = $P2[1]
   unless $I1 goto rotate_negative_reals
-    $N8    = $N0
-    $N8   *= theta              # theta/n
+    $N8    = $N0 * theta        # theta/n
     $N5   += $N8                # 2*$I0*pi/n + theta/n
     goto exponentiate
  rotate_negative_reals:         # we must rotate answer since we factored out (-1)^(1/n)
@@ -227,8 +221,7 @@ interval -pi <= $theta <= pi .
     div $N4, pi, n
     $N5 += $N4                  # exp( i pi / n ) = (-1)^(1/n) (principle root)
   exponentiate:
-    $N9        = $N0
-    $N9       *= $N1            # 1/n*ln(r)
+    $N9        = $N0 *$N1       # 1/n*ln(r)
     $P2[0]     = $N9
     $P2[1]     = $N5
     $P2        = $P2.'exp'()    # exp(1/n*(ln(r)+i*(theta + 2*k*pi)))
