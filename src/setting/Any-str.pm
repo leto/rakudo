@@ -12,7 +12,7 @@ class Any is also {
     }
 
     our Str multi method lc is export {
-        return Q:PIR {
+        Q:PIR {
             $S0 = self
             downcase $S0
             %r = box $S0
@@ -21,6 +21,33 @@ class Any is also {
 
     our Str multi method lcfirst is export {
         self gt '' ?? self.substr(0,1).lc ~ self.substr(1) !! ""
+    }
+
+    our Int multi method p5chomp is export(:P5) {
+        my $num = 0;
+
+        for @.list -> $str is rw {
+            if $str ~~ /\x0a$/ {
+                $str = $str.substr(0, $str.chars - 1);
+                $num++;
+            }
+        }
+
+        $num;
+    }
+
+    # TODO: Return type should be a Char once that is supported.
+    our Str multi method p5chop is export(:P5) {
+        my $char = '';
+
+        for @.list -> $str is rw {
+            if $str gt '' {
+                $char = $str.substr($str.chars - 1, 1);
+                $str  = $str.chop;
+            }
+        }
+
+        $char
     }
 
     our List multi method split(Code $delimiter, $limit = *) {
@@ -86,8 +113,13 @@ class Any is also {
         }
     }
 
+    # TODO: signature not fully specced in S32 yet
+    our Str multi method trim is export {
+        (~self).subst(/(^\s+)|(\s+$)/, "", :g)
+    }
+
     our Str multi method uc is export {
-        return Q:PIR {
+        Q:PIR {
             $S0 = self
             upcase $S0
             %r = box $S0
@@ -97,7 +129,6 @@ class Any is also {
     our Str multi method ucfirst is export {
         self gt '' ?? self.substr(0,1).uc ~ self.substr(1) !! ""
     }
-
 }
 
 sub split($delimiter, $target, $limit = *) {
