@@ -98,8 +98,9 @@ Returns the base 10 logarithm of a Complex.
 =cut
 
 .sub 'log10' :method :multi('Complex')
-    $P0 = self.'log10'()
-    .return ($P0)
+    get_hll_global $P0, 'log10'
+    $P1 = $P0(self)
+    .return ($P1)
 .end
 
 =item polar
