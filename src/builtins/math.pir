@@ -83,10 +83,16 @@ Returns the base 10 logarithm of $x.
 
 =cut
 
-.sub 'log10'
-    .param num a
-    $N0 = log10 a
+.sub 'log10' :multi(_)
+    .param pmc z
+    $I0 = isa z, 'Complex'
+    if $I0 goto complex
+    $N0 = z
+    $N0 = log10 $N0
     .return ($N0)
+   complex:
+    $P0 = z.'log10'()
+    .return ($P0)
 .end
 
 
