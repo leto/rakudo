@@ -31,7 +31,7 @@ There are two potential drawbacks:  (1) slower execution, and (2)
 some operations can be expressed in PIR that cannot yet be expressed
 in Rakudo (and sometimes not even in Perl 6!).  For cases where these
 drawbacks matter, we can use inline PIR or maintain the subroutines
-in PIR as needed.  
+in PIR as needed.
 
 =head2 Guidelines
 
@@ -85,7 +85,7 @@ All built-in methods or subroutines should be declared as C<multi>.
 
 If a method doesn't take any arguments, give it an explicit empty
 signature C<()>. That's very different from omitting the signature
-alltogether (which would be an implicit caatch-all signature).
+entirely, which would be an implicit catch-all signature.
 
 =back
 
