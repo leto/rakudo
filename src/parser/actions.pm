@@ -22,7 +22,6 @@ method TOP($/) {
 
     #  Make sure we have the interpinfo constants.
     $past.unshift( PAST::Op.new( :inline('.include "interpinfo.pasm"') ) );
-
     # Set package for unit mainline
     $past.unshift(set_package_magical());
 
@@ -141,6 +140,7 @@ method statement($/, $key) {
             my $body := $past;
             $past := $( $<statement_mod_cond> );
             $past.push( $body );
+            $past.push( PAST::Op.new( :name('list') ) );
             $sml := $<statement_mod_loop>[0];
         }
         if $key eq 'mod_loop' { $sml := $<statement_mod_loop>; }
@@ -432,23 +432,7 @@ method begin_statement($/) {
 }
 
 method start_statement($/) {
-    # Create block.
-    my $past := $( $<block> );
-    $past.blocktype('immediate');
-    declare_implicit_routine_vars($past);
-
-    # Mark block as needing to load state.
-    our @?BLOCK;
-    block_has_state(@?BLOCK[0]);
-
-    # We now need to emit code to run the block only once, and store the
-    # result. We'll just piggy-back off state vars.
-    make PAST::Var.new(
-        :scope('state'),
-        :name($past.unique('start_block_')),
-        :viviself($past),
-        :isdecl(1)
-    );
+    make make_start_block($( $<block> ));
 }
 
 method end_statement($/) {
@@ -1016,7 +1000,7 @@ method routine_def($/) {
         our @?BLOCK;
         @?BLOCK[0].symbol( $name, :scope('package') );
     }
-    $block.control('return_pir');
+    $block.control(return_handler_past());
     block_signature($block);
 
     if $<trait> {
@@ -1027,7 +1011,12 @@ method routine_def($/) {
             #  We just modify them to call !sub_trait and add
             #  'block' as the first argument.
             my $trait := $( $_ );
-            $trait.name('!sub_trait');
+            if substr($trait[0], 0, 11) eq 'trait_verb:' {
+                $trait.name('!sub_trait_verb');
+            }
+            else {
+                $trait.name('!sub_trait');
+            }
             $trait.unshift($blockreg);
             $loadinit.push($trait);
         }
@@ -1051,7 +1040,7 @@ method method_def($/) {
         )
     );
 
-    $block.control('return_pir');
+    $block.control(return_handler_past());
     block_signature($block);
     # Ensure there's an invocant in the signature.
     $block.loadinit().push(PAST::Op.new(
@@ -1068,7 +1057,12 @@ method method_def($/) {
             #  We just modify them to call !sub_trait and add
             #  'block' as the first argument.
             my $trait := $( $_ );
-            $trait.name('!sub_trait');
+            if substr($trait[0], 0, 11) eq 'trait_verb:' {
+                $trait.name('!sub_trait_verb');
+            }
+            else {
+                $trait.name('!sub_trait');
+            }
             $trait.unshift($blockreg);
             $loadinit.push($trait);
         }
@@ -1781,30 +1775,15 @@ method package_def($/, $key) {
     #  ...and at the end of the block's initializer (after any other
     #  items added by the block), we finalize the composition.
     if $?PKGDECL eq 'role' {
-        #  For a role, we now need to produce a new one which clones the original,
-        #  but without the methods. Then we need to add back the methods. We emit
-        #  PIR here to do it rather than doing a call, since we need to call
-        #  new_closure from the correct scope.
-        $block[0].push(PAST::Op.new(:inline(
-                '    "!meta_compose"(%0)',
-                '    .local pmc orig_role, meths, meth_iter',
-                '    orig_role = getprop "$!orig_role", %0',
-                '    meths = orig_role."methods"()',
-                '    meth_iter = iter meths',
-                '  it_loop:',
-                '    unless meth_iter goto it_loop_end',
-                '    $S0 = shift meth_iter',
-                '    $P0 = meths[$S0]',
-                '    $P1 = getprop "$!signature", $P0',
-                '    $P0 = newclosure $P0',
-                '    setprop $P0, "$!signature", $P1',
-                '    %0."add_method"($S0, $P0)',
-                '    goto it_loop',
-                '  it_loop_end:',
-                '    .return (%0)'
-            ),
-            $?METACLASS
-        ));
+        #  For a role, we now need to produce a copy of the role
+        #  and clones of the methods (having captured the current
+        #  lexical context).
+        $block[0].push(
+            PAST::Op.new(
+                :inline('    .tailcall "!create_parametric_role"(%0)'),
+                $?METACLASS
+            )
+        );
     }
     elsif $is_anon && ($?PKGDECL eq 'class' || $?PKGDECL eq 'grammar') {
         #  We need to keep the proto around and return it at the end of
@@ -1945,6 +1924,72 @@ method scope_declarator($/) {
             block_has_state($block);
         }
     }
+
+    # If we have a lexical sub, need to do some work. If it's single dispatch
+    # then we just need to grab and bind it to a lexical. If it's a multi, we
+    # need to clone the outer multi if we didn't already and push this candidate
+    # onto it. To avoid doing this clone every time we invoke the block (would
+    # be costly) we use state variables to persist it.
+    if $past.isa(PAST::Block) && $past.blocktype() ne 'method' {
+        if $scope eq 'lexical' {
+            # Block needs to become anonymous.
+            my $name := $past.name();
+            $past.name($past.unique('block_'));
+
+            if $past<multi_flag> {
+                my $sym_info := $block.symbol($name);
+                my $result := PAST::Stmts.new(:node($/));
+
+                if $sym_info<scope> ne 'lexical' {
+                    # First multi of this name. Create state var for storing candidate
+                    # list.
+                    my $outer := outer_symbol($name, 1);
+                    $result.push(PAST::Var.new(
+                        :name($name),
+                        :scope('state'),
+                        :isdecl(1),
+                        :viviself(PAST::Op.new(
+                            :pasttype('call'),
+                            :name('!clone_multi_for_lexical'),
+                            $outer<scope> eq 'lexical' ??
+                                PAST::Op.new( :inline("    %r = find_lex_lift '" ~ $name ~ "'") ) !!
+                                PAST::Var.new( :name($name), :scope('package') )
+                        ))
+                    ));
+                    block_has_state($block);
+                    $block.symbol($name, :scope('lexical'), :does_callable(1), :is_multi(1));
+                }
+                elsif !$sym_info<is_multi> {
+                    $/.panic('only sub conflicts with multi');
+                }
+                
+                # Emit START block for adding this candidate.
+                $result.push(make_start_block(PAST::Block.new(
+                    PAST::Stmts.new(),
+                    PAST::Op.new(
+                        :pasttype('callmethod'),
+                        :name('push'),
+                        PAST::Var.new( :name($name), :scope('lexical') ),
+                        $past
+                    )
+                )));
+                $past := $result;
+            }
+            else {
+                $past := PAST::Var.new(
+                    :name($name),
+                    :scope('lexical'),
+                    :isdecl(1),
+                    :viviself($past)
+                );
+                $block.symbol($name, :scope('lexical'), :does_callable(1));
+            }
+        }
+        elsif $scope ne 'package' {
+            $/.panic('Can not use ' ~ $scope ~ ' scope with a sub.');
+        }
+    }
+
     make $past;
 }
 
@@ -2503,6 +2548,11 @@ method term($/, $key) {
 }
 
 
+method term_START($/) {
+    make make_start_block($( $<block> ));
+}
+
+
 method args($/, $key) {
     my $past := build_call( $key eq 'func args'
         ?? $($<semilist>)
@@ -2891,12 +2941,14 @@ method sigterm($/) {
 
 
 # search through outer blocks for a symbol table entry
-sub outer_symbol($name) {
+sub outer_symbol($name, $skip_first?) {
     our @?BLOCK;
     my $symbol;
     for @?BLOCK {
-        $symbol := $_.symbol($name);
-        if $symbol { return $symbol; }
+        if !$skip_first || !($_ =:= @?BLOCK[0]) {
+            $symbol := $_.symbol($name);
+            if $symbol { return $symbol; }
+        }
     }
     return $symbol;
 }
@@ -3132,6 +3184,12 @@ sub set_block_type($block, $type) {
         );
         $block<block_class_type> := $set_type;
         $block.loadinit().push($set_type);
+        # The following is to make sure the Parrot-level sub has a backlink
+        # to the Rakudo-level object, since it's all that we can find from
+        # interpinfo.
+        $block.loadinit().push(PAST::Op.new(
+            :inline("    $P0 = getattribute block, ['Sub'], 'proxy'",
+                    "    setprop $P0, '$!real_self', block") ) );
     }
 }
 
@@ -3181,6 +3239,26 @@ sub prevent_null_return($block) {
 }
 
 
+# This makes a START block (factored out since used as a term and a statement).
+sub make_start_block($past) {
+    # Set up block.
+    $past.blocktype('immediate');
+    declare_implicit_routine_vars($past);
+
+    # Mark block as needing to load state.
+    our @?BLOCK;
+    block_has_state(@?BLOCK[0]);
+
+    # We now need to emit code to run the block only once, and store the
+    # result. We'll just piggy-back off state vars.
+    return PAST::Var.new(
+        :scope('state'),
+        :name($past.unique('start_block_')),
+        :viviself($past),
+        :isdecl(1)
+    );
+}
+
 # This takes a block and ensures we emit code to load any associated state
 # (START blocks, state variables) at block entry.
 sub block_has_state($block) {
@@ -3191,6 +3269,33 @@ sub block_has_state($block) {
         ));
         $block<needs_state_loaded> := 1;
     }
+}
+
+# Manufactures PAST to handle check of return type.
+sub return_handler_past() {
+    PAST::Stmts.new(
+        PAST::Op.new( :inline('    exception = getattribute exception, "payload"') ),
+        PAST::Op.new(
+            :pasttype('if'),
+            PAST::Op.new(
+                :pasttype('callmethod'),
+                :name('ACCEPTS'),
+                PAST::Op.new( :inline("    %r = interpinfo .INTERPINFO_CURRENT_SUB",
+                                      "    %r = getprop '$!real_self', %r",
+                                      "    %r = %r.'of'()") ),
+                PAST::Var.new( :name('exception'), :scope('register') )
+            ),
+            PAST::Op.new(
+                :inline('    .return (%0)'),
+                PAST::Var.new( :name('exception'), :scope('register') )
+            ),
+            PAST::Op.new(
+                :pasttype('call'),
+                :name('die'),
+                'Type check failed on return value'
+            )
+        )
+    )
 }
 
 # Local Variables:

@@ -333,6 +333,22 @@ first). So for now we just transform multis in user code like this.
 .end
 
 
+=item !clone_multi_for_lexical
+
+=cut
+
+.sub '!clone_multi_for_lexical'
+    .param pmc existing
+    if null existing goto fresh
+    unless existing goto fresh
+    $P0 = existing.'clone'()
+    .return ($P0)
+  fresh:
+    $P0 = new 'Perl6MultiSub'
+    .return ($P0)  
+.end
+
+
 =item !UNIT_START
 
 =cut
@@ -449,8 +465,9 @@ is composed (see C<!meta_compose> below).
     .param int also
 
     .local pmc nsarray
-    $P0 = compreg 'Perl6'
-    nsarray = $P0.'parse_name'(name)
+    $P0 = get_hll_global [ 'Perl6';'Compiler' ], 'parse_name'
+    $P1 = null
+    nsarray = $P0($P1, name)
 
     if type == 'package' goto package
     if type == 'module' goto package
@@ -866,11 +883,11 @@ in an ambiguous multiple dispatch.
     exportns = blockns.'make_namespace'('EXPORT')
     if null arg goto default_export
     .local pmc it
-    arg = arg.'list'()
+    arg = 'list'(arg)
     $I0 = arg.'elems'()
     if $I0 goto have_arg
   default_export:
-    $P0 = get_hll_global 'Perl6Pair'
+    $P0 = get_hll_global 'Pair'
     $P0 = $P0.'new'('key' => 'DEFAULT', 'value' => 1)
     arg = 'list'($P0)
   have_arg:
@@ -888,6 +905,49 @@ in an ambiguous multiple dispatch.
   arg_done:
     ns = exportns.'make_namespace'('ALL')
     ns[blockname] = block
+.end
+
+=item !sub_trait_verb(sub, trait, arg?)
+
+=cut
+
+.sub '!sub_trait_verb'
+    .param pmc block
+    .param string trait
+    .param pmc arg             :optional
+    .param int has_arg         :opt_flag
+
+    if has_arg goto have_arg
+    null arg
+  have_arg:
+
+    $S0 = substr trait, 11
+    $S0 = concat '!sub_trait_verb_', $S0
+    $P0 = find_name $S0
+    if null $P0 goto done
+    $P0(block, arg)
+  done:
+.end
+
+
+=item !sub_trait_returns(trait, block, arg)
+
+Sets the returns trait, which sets the type that the block must return.
+The of trait is just an alias to this.
+
+=cut
+
+.sub '!sub_trait_verb_returns'
+    .param pmc block
+    .param pmc type
+    $P0 = get_hll_global 'Callable'
+    $P0 = $P0.'!select'(type)
+    'infix:does'(block, $P0)
+.end
+.sub '!sub_trait_verb_of'
+    .param pmc block
+    .param pmc arg
+    .tailcall '!sub_trait_verb_returns'(block, arg)
 .end
 
 
@@ -989,6 +1049,39 @@ Helper method to compose the attributes of a role into a class.
   props_iter_loop_end:
     goto fixup_iter_loop
   fixup_iter_loop_end:
+.end
+
+=item !create_parametric_role
+
+Helper method for creating parametric roles.
+
+=cut
+
+.sub '!create_parametric_role'
+    .param pmc mr
+    '!meta_compose'(mr)
+    .local pmc orig_role, meths, meth_iter
+    orig_role = getprop '$!orig_role', mr
+    meths = orig_role.'methods'()
+    meth_iter = iter meths
+  it_loop:
+    unless meth_iter goto it_loop_end
+    $S0 = shift meth_iter
+    $P0 = meths[$S0]
+    $P1 = clone $P0
+    $P2 = getprop '$!signature', $P0
+    setprop $P1, '$!signature', $P2
+    $I0 = isa $P0, 'Code'
+    unless $I0 goto ret_pir_skip_rs
+    $P2 = getattribute $P0, ['Sub'], 'proxy'
+    $P2 = getprop '$!real_self', $P2
+    $P3 = getattribute $P1, ['Sub'], 'proxy'
+    setprop $P3, '$!real_self', $P2
+  ret_pir_skip_rs:
+    mr.'add_method'($S0, $P1)
+    goto it_loop
+  it_loop_end:
+    .return (mr)
 .end
 
 

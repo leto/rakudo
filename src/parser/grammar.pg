@@ -94,7 +94,11 @@ token nofun { <!before '(' | '.(' | '\\' > }
 token unv {
     || \h+
     || ^^ <.pod_comment>
-    || '#' \N*
+    || ^^ '#' <?opener> <.panic: "Can't use embedded columns in column 1">
+    || '#' [
+           | <?opener> <quote_expression: >
+           | \N*
+           ]
 }
 
 ##  The <afterws> rule returns true if we're immediate after
@@ -638,6 +642,7 @@ token noun {
 token term {
     [
     | 'VAR(' <variable> ')' {*}                  #= VAR
+    | <term_START> {*}                           #= term_START
     | <name=named_0ary>
         [
         | <.unsp>? '.'? '(' <semilist> ')' {*}   #= func args
@@ -652,6 +657,11 @@ token term {
     | <sigil> \s <arglist> {*}                   #= sigil
     | '...' {*}                                  #= ...
     ]
+}
+
+
+rule term_START {
+    $<sym>=[START] <block> {*}
 }
 
 
@@ -725,6 +735,7 @@ rule scoped {
     | <declarator>
     | <routine_declarator>
     | <fulltypename>+ <multi_declarator>
+    | <multi_declarator>
     ] {*}
     || <.panic: "Malformed declaration"> # STD.pm: <.panic: "Malformed \"$+SCOPE\" declaration">
 }

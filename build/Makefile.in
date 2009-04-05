@@ -12,6 +12,7 @@ EXE           = @exe@
 MAKE          = @make_c@
 PERL          = @perl@
 RM_F          = @rm_f@
+HAS_ICU       = @has_icu@
 
 # Various paths
 PARROT_DYNEXT = $(BUILD_DIR)/runtime/parrot/dynext
@@ -50,6 +51,7 @@ BUILTINS_PIR = \
   src/classes/ClassHOW.pir \
   src/classes/Object.pir \
   src/classes/Any.pir \
+  src/classes/Junction.pir \
   src/classes/Signature.pir \
   src/classes/Role.pir \
   src/classes/Abstraction.pir \
@@ -77,7 +79,6 @@ BUILTINS_PIR = \
   src/classes/Method.pir \
   src/classes/Submethod.pir \
   src/classes/Multi.pir \
-  src/classes/Junction.pir \
   src/classes/Failure.pir \
   src/classes/Exception.pir \
   src/classes/Nil.pir \
@@ -87,6 +88,7 @@ BUILTINS_PIR = \
   src/classes/Match.pir \
   src/classes/Grammar.pir \
   src/classes/Module.pir \
+  src/classes/Iterator.pir \
   src/builtins/globals.pir \
   src/builtins/any-list.pir \
   src/builtins/any-num.pir \
@@ -119,6 +121,7 @@ SETTING = \
   src/setting/Match.pm \
   src/setting/Object.pm \
   src/setting/Pair.pm \
+  src/setting/Range.pm \
   src/setting/Str.pm \
   src/setting/Whatever.pm \
 
@@ -158,7 +161,7 @@ CLEANUPS = \
 
 # NOTE: eventually, we should remove --keep-exit-code and --fudge
 #       as the goal is that all tests must pass without fudge
-HARNESS_WITH_FUDGE = $(PERL) t/harness --fudge --keep-exit-code
+HARNESS_WITH_FUDGE = $(PERL) t/harness --fudge --keep-exit-code --icu=$(HAS_ICU)
 HARNESS_WITH_FUDGE_JOBS = $(HARNESS_WITH_FUDGE) --jobs
 
 

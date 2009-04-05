@@ -390,7 +390,7 @@ on error.
 
     message = list.'join'('')
     if message > '' goto have_message
-    message = "Warning!  Something's wrong\n"
+    message = "Warning! Something's wrong.\n"
   have_message:
     ## count_eh is broken
     # $I0 = count_eh
@@ -401,7 +401,9 @@ on error.
     throw ex
     .return ()
   no_eh:
-    printerr message
+    .local pmc err
+    err = get_hll_global "$ERR"
+    err.'print'(message)
     .return ()
 .end
 
