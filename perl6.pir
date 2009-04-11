@@ -232,6 +232,7 @@ to the Perl 6 compiler.
 .include 'src/gen_actions.pir'
 .include 'src/gen_metaop.pir'
 .include 'src/gen_junction.pir'
+.include 'src/gen_whatever.pir'
 
 =item postload()
 
@@ -267,6 +268,10 @@ Currently this does the equivalent of EXPORTALL on the core namespaces.
   ns_done:
 .end
 
+##  This goes at the bottom because the methods end up in the 'parrot'
+##  HLL namespace.
+
+.include 'src/gen_uprop.pir'
 
 # Local Variables:
 #   mode: pir

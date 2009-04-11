@@ -55,6 +55,7 @@ S02-builtin_data_types/type.t
 S02-builtin_data_types/whatever.t
 S02-literals/array-interpolation.t
 S02-literals/autoref.t
+S02-literals/char-by-name.t                                # icu
 S02-literals/char-by-number.t
 S02-literals/hash-interpolation.t
 S02-literals/hex_chars.t
@@ -76,6 +77,7 @@ S02-names_and_variables/fmt.t
 S02-names_and_variables/varnames.t
 S02-one-pass-parsing/less-than.t
 S02-polymorphic_types/subset.t
+S02-whitespace_and_comments/comments.t
 S02-whitespace_and_comments/minimal-whitespace.t
 S02-whitespace_and_comments/one-pass-parsing.t
 S02-whitespace_and_comments/pod-in-multi-line-exprs.t
@@ -163,6 +165,11 @@ S05-grammar/inheritance.t
 S05-grammar/namespace.t
 S05-grammar/parse_and_parsefile.t
 S05-grammar/ws.t
+S05-mass/named-chars.t                                     # icu
+S05-mass/properties-block.t                                # icu
+S05-mass/properties-derived.t                              # icu
+S05-mass/properties-general.t                              # icu
+S05-mass/properties-script.t                               # icu
 S05-mass/rx.t
 S05-mass/recursive.t
 S05-mass/stdrules.t
@@ -189,11 +196,14 @@ S05-substitution/match.t
 S05-substitution/subst.t
 S05-transliteration/trans.t
 S05-transliteration/with-closure.t
+S06-advanced_subroutine_features/lexical-subs.t
 S06-advanced_subroutine_features/recurse.t
 S06-advanced_subroutine_features/return2.t
 S06-advanced_subroutine_features/return.t
+S06-advanced_subroutine_features/wrap.t
 S06-currying/assuming-and-mmd.t
 S06-currying/named.t
+S06-multi/lexical-multis.t
 S06-multi/proto.t
 S06-multi/syntax.t
 S06-multi/type-based.t
@@ -218,10 +228,13 @@ S06-signature/slurpy-params.t
 S06-signature/slurpy-placeholders.t
 S06-signature/sub-ref.t
 S06-signature/type-capture.t
+S06-signature/types.t
 S06-traits/is-copy.t
 S06-traits/is-rw.t
 S06-traits/misc.t
 S09-subscript_slice/slice.t
+S09-typed-arrays/arrays.t
+S09-typed-arrays/hashes.t
 S10-packages/use-with-class.t
 S11-modules/export.t
 S11-modules/import.t
@@ -247,6 +260,8 @@ S12-class/is_also_instead.t
 S12-class/namespaced.t
 S12-class/open.t
 S12-class/parent_attributes.t
+S12-construction/autopairs.t
+S12-construction/construction.t
 S12-construction/new.t
 S12-enums/anonymous.t
 S12-enums/as-role.t
@@ -254,6 +269,7 @@ S12-enums/basic.t
 S12-introspection/can.t
 S12-methods/calling_sets.t
 S12-methods/calling_syntax.t
+S12-methods/class-and-instance.t
 S12-methods/default-trait.t
 S12-methods/indirect_notation.t
 S12-methods/instance.t
@@ -280,9 +296,11 @@ S16-filehandles/io.t
 S16-filehandles/io_in_for_loops.t
 S16-filehandles/io_in_while_loops.t
 S16-filehandles/open.t
+S16-filehandles/unlink.t
 S16-io/bare-say.t
 S16-io/basic-open.t
 S16-io/say.t
+S16-unfiled/rebindstdhandles.t
 S16-unfiled/slurp.t
 S29-any/cmp.t
 S29-any/isa.t
@@ -303,6 +321,8 @@ S32-container/zip.t
 S32-hash/exists.t
 S32-hash/keys_values.t
 S32-hash/pairs.t
+S32-hash/push.t
+S32-hash/reverse.t
 S32-hash/slice.t
 S32-list/end.t
 S32-list/first.t

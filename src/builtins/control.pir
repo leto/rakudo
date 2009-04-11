@@ -114,7 +114,7 @@ the moment -- we'll do more complex handling a bit later.)
     continuation()
 .end
 
-=item next
+=item last
 
 =cut
 
@@ -126,6 +126,10 @@ the moment -- we'll do more complex handling a bit later.)
     throw e
 .end
 
+=item next
+
+=cut
+
 .sub 'next'
     .local pmc e
     e = new 'Exception'
@@ -133,6 +137,10 @@ the moment -- we'll do more complex handling a bit later.)
     e['type'] = .CONTROL_LOOP_NEXT
     throw e
 .end
+
+=item redo
+
+=cut
 
 .sub 'redo'
     .local pmc e
@@ -142,6 +150,10 @@ the moment -- we'll do more complex handling a bit later.)
     throw e
 .end
 
+=item continue
+
+=cut
+
 .sub 'continue'
     .local pmc e
     e = new 'Exception'
@@ -149,6 +161,10 @@ the moment -- we'll do more complex handling a bit later.)
     e['type'] = .CONTROL_CONTINUE
     throw e
 .end
+
+=item break
+
+=cut
 
 .sub 'break'
     .param pmc arg :optional
@@ -200,6 +216,8 @@ the moment -- we'll do more complex handling a bit later.)
   have_message:
     ex = new 'Exception'
     ex = message
+    ex['severity'] = .EXCEPT_FATAL
+    ex['type'] = .CONTROL_ERROR
     set_global '$!', ex
     throw ex
     .return ()
@@ -390,7 +408,7 @@ on error.
 
     message = list.'join'('')
     if message > '' goto have_message
-    message = "Warning!  Something's wrong\n"
+    message = "Warning! Something's wrong.\n"
   have_message:
     ## count_eh is broken
     # $I0 = count_eh
@@ -401,8 +419,81 @@ on error.
     throw ex
     .return ()
   no_eh:
-    printerr message
+    .local pmc err
+    err = get_hll_global "$ERR"
+    err.'print'(message)
     .return ()
+.end
+
+
+=item callwith
+
+=cut
+
+.sub 'callwith'
+    .param pmc pos_args    :slurpy
+    .param pmc named_args  :slurpy :named
+
+    # Is our caller a wrapping? If so, call inner.
+    .local pmc caller, inner
+    $P0 = new 'ParrotInterpreter'
+    caller = $P0['sub'; 1]
+  search_loop:
+    inner = getprop '$!wrap_inner', caller
+    if null inner goto try_outer
+    .tailcall inner(pos_args :flat, named_args :flat :named)
+  try_outer:
+    $I0 = isa caller, 'Routine' # Should not search out of current routine.
+    if $I0 goto not_wrapped
+    caller = caller.'get_outer'()
+    if null caller goto not_wrapped
+    $P0 = getprop '$!real_self', caller
+    if null $P0 goto search_loop
+    caller = $P0
+    goto search_loop
+
+  not_wrapped:
+    'die'('Use of callwith in non-wrapped case not yet implemented.')
+.end
+
+
+=item callsame
+
+=cut
+
+.sub 'callsame'
+    # Is our caller a wrapping? If so, find what we need to call.
+    .local pmc caller, inner
+    $P0 = new 'ParrotInterpreter'
+    caller = $P0['sub'; 1]
+  search_loop:
+    inner = getprop '$!wrap_inner', caller
+    unless null inner goto found_inner
+  try_outer:
+    $I0 = isa caller, 'Routine' # Should not search out of current routine.
+    if $I0 goto not_wrapped
+    caller = caller.'get_outer'()
+    if null caller goto not_wrapped
+    $P0 = getprop '$!real_self', caller
+    if null $P0 goto search_loop
+    caller = $P0
+    goto search_loop
+
+  found_inner:
+    # Now we need to get the arguments passed.
+    # XXX TODO: not sure how to do this well just yet. For now, just die if there
+    # are args, but call things that don't get any.
+    .local pmc params
+    params = inner.'signature'()
+    params = params.'params'()
+    $I0 = params
+    if $I0 > 0 goto unimpl
+    .tailcall inner()
+  unimpl:
+    'die'("callsame passing on arguments not yet implemented")
+
+  not_wrapped:
+    'die'('Use of callsame in non-wrapped case not yet implemented.')
 .end
 
 

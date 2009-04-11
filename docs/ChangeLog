@@ -1,3 +1,18 @@
+New in 2009-04 release
+* enforce return types of subroutines (partial implementation)
+* parallel testing
+* Configure.pl now supports passing options to parrot's Configure
+* support for lexical subroutines and multis
+* implemented \c[character name] in double quoted strings and regexes
+* implemented Perl 5 regexes
+* rx/.../ regex quoting
+* moved many methods to the setting
+* exporting and importing by tags, support :DEFAULT export tag
+* implemented START 
+* implemented roots builtin
+* implemented .ast on Match objects
+* split() now supports limits in all cases
+
 New in 2009-03 release (#15, "Oslo")
 + implemented $*PROGRAM_NAME magical variable
 + outer lexicals are now visible in eval()

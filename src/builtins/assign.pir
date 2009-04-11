@@ -16,13 +16,25 @@ src/builtins/assign.pir - assignments
     .param pmc cont
     .param pmc source
 
-    source = '!CALLMETHOD'('Scalar', source)
     .local pmc ro, type
     getprop ro, 'readonly', cont
     if null ro goto ro_ok
     unless ro goto ro_ok
     'die'('Cannot assign to readonly variable.')
   ro_ok:
+
+    # This is a workaround because Parrot's multi-dispatch sometimes gets us
+    # here by accident when we have a Perl6Array that got re-blessed.
+    $I0 = isa cont, 'Perl6Array'
+    unless $I0 goto not_array
+    .tailcall cont.'!STORE'(source)
+  not_array:
+    $I0 = isa cont, 'Perl6Hash'
+    unless $I0 goto not_hash
+    .tailcall cont.'!STORE'(source)
+  not_hash:
+
+    source = '!CALLMETHOD'('Scalar', source)
     $I0 = defined source
     unless $I0 goto do_assign
     getprop type, 'type', cont
@@ -41,6 +53,12 @@ src/builtins/assign.pir - assignments
     unless $I0 goto assign_done
     $P0 = getprop '$!signature', source
     setprop cont, '$!signature', $P0
+    $I0 = isa source, 'Code'
+    unless $I0 goto assign_done
+    $P0 = getattribute source, ['Sub'], 'proxy'
+    $P0 = getprop '$!real_self', $P0
+    $P1 = getattribute cont, ['Sub'], 'proxy'
+    setprop $P1, '$!real_self', $P0
   assign_done:
     .return (cont)
 .end
