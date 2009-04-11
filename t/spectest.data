@@ -166,6 +166,10 @@ S05-grammar/namespace.t
 S05-grammar/parse_and_parsefile.t
 S05-grammar/ws.t
 S05-mass/named-chars.t                                     # icu
+S05-mass/properties-block.t                                # icu
+S05-mass/properties-derived.t                              # icu
+S05-mass/properties-general.t                              # icu
+S05-mass/properties-script.t                               # icu
 S05-mass/rx.t
 S05-mass/recursive.t
 S05-mass/stdrules.t
@@ -196,6 +200,7 @@ S06-advanced_subroutine_features/lexical-subs.t
 S06-advanced_subroutine_features/recurse.t
 S06-advanced_subroutine_features/return2.t
 S06-advanced_subroutine_features/return.t
+S06-advanced_subroutine_features/wrap.t
 S06-currying/assuming-and-mmd.t
 S06-currying/named.t
 S06-multi/lexical-multis.t
@@ -223,10 +228,13 @@ S06-signature/slurpy-params.t
 S06-signature/slurpy-placeholders.t
 S06-signature/sub-ref.t
 S06-signature/type-capture.t
+S06-signature/types.t
 S06-traits/is-copy.t
 S06-traits/is-rw.t
 S06-traits/misc.t
 S09-subscript_slice/slice.t
+S09-typed-arrays/arrays.t
+S09-typed-arrays/hashes.t
 S10-packages/use-with-class.t
 S11-modules/export.t
 S11-modules/import.t
@@ -313,6 +321,8 @@ S32-container/zip.t
 S32-hash/exists.t
 S32-hash/keys_values.t
 S32-hash/pairs.t
+S32-hash/push.t
+S32-hash/reverse.t
 S32-hash/slice.t
 S32-list/end.t
 S32-list/first.t

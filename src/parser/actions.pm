@@ -1164,12 +1164,15 @@ method signature($/, $key) {
             my $sigparam := PAST::Op.new( :pasttype('callmethod'),
                                 :name('!add_param'), $sigobj, $name );
 
-            ##  if it's named or optional, note that in the signature object
+            ##  if it's named optional or slurpy, note that in the signature object
             if $var.named() ne "" {
                 $sigparam.push(PAST::Val.new( :value($var.named()), :named('named') ));
             }
             if $var.viviself() {
                 $sigparam.push(PAST::Val.new( :value(1), :named('optional') ));
+            }
+            if $var.slurpy() {
+                $sigparam.push(PAST::Val.new( :value(1), :named('slurpy') ));
             }
 
             ##  add any typechecks
@@ -1271,7 +1274,7 @@ method parameter($/) {
         our @?BLOCK;
         my $name := ~$<type_constraint>[0];
         $var     := PAST::Var.new( :scope('parameter') );
-        $var.name($var.unique());
+        $var.name($var.unique('::TYPE_CAPTURE'));
         @?BLOCK[0].symbol( $var.name(), :scope('lexical') );
     }
 
@@ -1304,6 +1307,9 @@ method parameter($/) {
     my $typelist := PAST::Op.new( :name('all'), :pasttype('call') );
     $var<type> := $typelist;
     if $<type_constraint> {
+        if $<type_constraint> != 1 {
+            $/.panic("Multiple prefix constraints not yet supported");
+        }
         for @($<type_constraint>) {
             my $type_past := $( $_ );
             if $type_past.isa(PAST::Var) && $type_past.scope() eq 'lexical' {
@@ -1393,25 +1399,7 @@ method param_var($/) {
 
 
 method expect_term($/, $key) {
-    my $past;
-    if $key eq '*' {
-        # Whatever.
-        $past := PAST::Op.new(
-            :pasttype('callmethod'),
-            :name('new'),
-            :node($/),
-            :lvalue(1),
-            PAST::Var.new(
-                :name('Whatever'),
-                :namespace(list()),
-                :scope('package'),
-                :node($/)
-            )
-        );
-    }
-    else {
-        $past := $( $/{$key} );
-    }
+    my $past := $( $/{$key} );
 
     if $<post> {
         for $<post> {
@@ -1843,7 +1831,12 @@ method scope_declarator($/) {
                 if $scope eq 'package' { $var.lvalue(1); }
                 my $init_value := $var.viviself();
                 my $type;
-                if +@($var<type>) { $type := $var<type>[0]; }  # FIXME
+                if +@($var<type>) == 1 {
+                    $type := $var<type>[0];
+                }
+                elsif +@($var<type>) > 1 {
+                    $/.panic("Multiple prefix constraints not yet supported");
+                }
 
                 # If the var has a '.' twigil, we need to create an
                 # accessor method for it in the block (class/grammar/role)
@@ -1905,8 +1898,27 @@ method scope_declarator($/) {
                     if $init_value { $viviself.push( $init_value ); }
                     $var.viviself( $viviself );
                     if $type {
-                        $var := PAST::Op.new( :pirop('setprop'),
-                                              $var, 'type', $type );
+                        if $var<sigil> eq '$' {
+                            $var := PAST::Op.new( :pirop('setprop'), $var, 'type', $type );
+                        }
+                        else {
+                            my $role_type;
+                            if $var<sigil> eq '@' { $role_type := 'Positional' }
+                            elsif $var<sigil> eq '%' { $role_type := 'Associative' }
+                            elsif $var<sigil> eq '' { $role_type := 'Callable' } # & becomes null sigil
+                            else { $/.panic("Cannot handle typed variables with sigil " ~ $var<sigil>); }
+                            $var := PAST::Op.new(
+                                :pasttype('call'),
+                                :name('infix:does'),
+                                $var,
+                                PAST::Op.new(
+                                    :pasttype('callmethod'),
+                                    :name('!select'),
+                                    PAST::Var.new( :name($role_type), :scope('package') ),
+                                    $type
+                                )
+                            );
+                        }
                     }
                 }
                 $past[$i] := $var;
@@ -2006,7 +2018,10 @@ method scoped($/) {
             for @($<fulltypename>) {
                 $type.push( $( $_ ) );
             }
-            $past.viviself( $( $<fulltypename>[0] ).clone() );
+            if $past<sigil> eq '$' {
+                # Scalars auto-vivify to the proto of their type.
+                $past.viviself( $( $<fulltypename>[0] ).clone() );
+            }
         }
     }
     make $past;
@@ -2116,6 +2131,7 @@ method variable($/, $key) {
         }
 
         $var := PAST::Var.new( :name($varname), :node($/) );
+        $var<sigil> := $sigil;
         if $twigil { $var<twigil> := $twigil; }
 
         # If namespace qualified or has a '*' twigil, it's a package var.
@@ -2144,6 +2160,9 @@ method variable($/, $key) {
         if $<sigil> eq '&' {
             my $sym := outer_symbol($varname);
             $var.scope( ($sym && $sym<scope>) || 'package');
+            if $var.scope() eq 'package' {
+                $var.viviself(PAST::Op.new( :pasttype('call'), :name('undef') ));
+            }
         }
 
         # The ! twigil always implies attribute scope.
@@ -2478,7 +2497,22 @@ method term($/, $key) {
         $short_name := @ns.pop();
     }
 
-    if $key eq 'noarg' {
+    if $key eq '*' {
+        # Whatever.
+        $past := PAST::Op.new(
+            :pasttype('callmethod'),
+            :name('new'),
+            :node($/),
+            :lvalue(1),
+            PAST::Var.new(
+                :name('Whatever'),
+                :namespace(list()),
+                :scope('package'),
+                :node($/)
+            )
+        );
+    }
+    elsif $key eq 'noarg' {
         if @ns {
             $past := PAST::Op.new(
                 PAST::Var.new(
