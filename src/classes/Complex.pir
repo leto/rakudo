@@ -63,19 +63,8 @@ Returns the exponential of a Complex.
 
 .sub 'log10' :multi('Complex')
     .param pmc z
-    .local num r
-    .local num theta
-    $P0   = z.'polar'()
-    $P1   = new 'Complex'
-    r     = $P0[0]
-    theta = $P0[1]
-    $N0   = ln 10
-    div theta, theta, $N0
-    $N1   = ln r
-    div $N1, $N1, $N0
-    $P1[0]= $N1
-    $P1[1]= theta
-    .return ($P1)
+    $P0 = z.'log10'()
+    .return ($P0)
 .end
 
 
@@ -98,7 +87,19 @@ Returns the base 10 logarithm of a Complex.
 =cut
 
 .sub 'log10' :method :multi('Complex')
-    get_hll_global $P0, 'log10'
+    .local num r
+    .local num theta
+    $P0   = self.'polar'()
+    $P1   = new 'Complex'
+    r     = $P0[0]
+    theta = $P0[1]
+    $N0   = ln 10
+    div theta, theta, $N0
+    $N1   = ln r
+    div $N1, $N1, $N0
+    $P1[0]= $N1
+    $P1[1]= theta
+    .return ($P1)
     $P1 = $P0(self)
     .return ($P1)
 .end
