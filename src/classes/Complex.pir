@@ -61,13 +61,6 @@ Returns the exponential of a Complex.
     .return ($P0)
 .end
 
-.sub 'log10' :multi('Complex')
-    .param pmc z
-    $P0 = z.'log10'()
-    .return ($P0)
-.end
-
-
 =item log
 
 Returns the logarithm of a Complex.
