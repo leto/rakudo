@@ -14,9 +14,14 @@ our %?CLASSMAP;
 %?CLASSMAP<Pair>    := 'Perl6Pair';
 %?CLASSMAP<Complex> := 'Perl6Complex';
 
+# $?RAKUDO_HLL identifies the .HLL to use for compilation --
+# it's ultimately set by the .RAKUDO_HLL macro in F<perl6.pir> .
+our $?RAKUDO_HLL;
+
 method TOP($/) {
     my $past := $<statement_block>.ast;
     $past.blocktype('declaration');
+    $past.hll($?RAKUDO_HLL);
     declare_implicit_routine_vars($past);
     $past.lexical(0);
 
@@ -77,6 +82,7 @@ method TOP($/) {
         $main.push( PAST::Stmts.new() );
     }
 
+    $main.hll($?RAKUDO_HLL);
     make $main;
 }
 
@@ -99,6 +105,7 @@ method statement_block($/, $key) {
     if $key eq 'close' {
         my $past := @?BLOCK.shift();
         $past.push($<statementlist>.ast);
+        $past.hll($?RAKUDO_HLL);
         make $past;
     }
 }
@@ -206,6 +213,7 @@ method repeat_statement($/) {
     my $cond  := $<EXPR>.ast;
     my $block := $<block>.ast;
     $block.blocktype('immediate');
+    declare_implicit_block_vars($block, 0);
     # pasttype is 'repeat_while' or 'repeat_until'
     my $pasttype := 'repeat_' ~ ~$<loop>;
     make PAST::Op.new( $cond, $block, :pasttype($pasttype), :node($/) );
@@ -223,6 +231,7 @@ method given_statement($/) {
 method when_statement($/) {
     my $block := $<block>.ast;
     $block.blocktype('immediate');
+    declare_implicit_block_vars($block, 0);
 
     # Push a handler onto the innermost block so that we can exit if we
     # successfully match
@@ -248,6 +257,7 @@ method default_statement($/) {
     # Always executed if reached, so just produce the block.
     my $block := $<block>.ast;
     $block.blocktype('immediate');
+    declare_implicit_block_vars($block, 0);
 
     # Push a handler onto the innermost block so that we can exit if we
     # successfully match
@@ -311,6 +321,7 @@ sub when_handler_helper($block) {
 method loop_statement($/) {
     my $block := $<block>.ast;
     $block.blocktype('immediate');
+    declare_implicit_block_vars($block, 0);
     my $cond  := $<e2> ?? $<e2>[0].ast !! 1;
     my $loop := PAST::Op.new( $cond, $block, :pasttype('while'), :node($/) );
     if $<e3> {
@@ -665,279 +676,30 @@ method enum_declarator($/, $key) {
             $/.panic("Re-declaration of type " ~ $name);
         }
 
-        # Get a mapping of all the names we will introduce with this enumeration to their
-        # values. We'll compute these at compile time, so then we can build as much of the
-        # enum as possible as PAST at compile time too. Note that means that, like a
-        # BEGIN block, we will compile, run and get the return value now.
-        my $block := PAST::Block.new(
+        # Get all of the names of the enum values we will introduce and register
+        # them as type names.
+        our @?BLOCK;
+        my $getvals_sub := PAST::Compiler.compile(PAST::Block.new(
             :blocktype('declaration'),
-            PAST::Stmts.new(
-                PAST::Op.new(
-                    :pasttype('call'),
-                    :name('!anon_enum'),
-                    $values
-                )
-            )
-        );
-        my $getvals_sub := PAST::Compiler.compile( $block );
-        my %values := $getvals_sub();
-
-        # Now we need to emit a role of the name of the enum containing:
-        #  * One attribute with the same name as the enum
-        #  * A method of the same name as the enum
-        #  * Methods for each name introduced by the enum that compare the
-        #    attribute with the value of that name.
-        my $role_past := PAST::Stmts.new(
-            PAST::Op.new(
-                :pasttype('bind'),
-                PAST::Var.new(
-                    :name('def'),
-                    :scope('register'),
-                    :isdecl(1)
-                ),
-                PAST::Op.new(
-                    :pasttype('call'),
-                   :name('!keyword_role'),
-                    PAST::Val.new( :value($name) )
-                )
-            ),
             PAST::Op.new(
                 :pasttype('call'),
-                :name('!keyword_has'),
-                PAST::Op.new(
-                    :pasttype('callmethod'),
-                    :name('!select'),
-                    PAST::Var.new(
-                        :name('def'),
-                        :scope('register')
-                    )
-                ),
-                PAST::Val.new( :value("$!" ~ $name) ),
-                # XXX Set declared type here, when we parse that.
-                PAST::Var.new(
-                    :name('Object'),
-                    :scope('package')
-                )
-            ),
-            PAST::Op.new(
-                :pasttype('callmethod'),
-                :name('add_method'),
-                PAST::Op.new(
-                    :pasttype('callmethod'),
-                    :name('!select'),
-                    PAST::Var.new(
-                        :name('def'),
-                        :scope('register')
-                    )
-                ),
-                PAST::Val.new( :value($name) ),
-                make_accessor($/, undef, "$!" ~ $name, 1, 'attribute')
+                :name('!create_anon_enum'),
+                $values
             )
-        );
+        ));
+        my %values := $getvals_sub();
         for %values.keys() {
-            # Method for this value.
-            $role_past.push(PAST::Op.new(
-                :pasttype('callmethod'),
-                :name('add_method'),
-                PAST::Op.new(
-                    :pasttype('callmethod'),
-                    :name('!select'),
-                    PAST::Var.new(
-                        :name('def'),
-                        :scope('register')
-                    )
-                ),
-                PAST::Val.new( :value($_) ),
-                PAST::Block.new(
-                    :blocktype('declaration'),
-                    :pirflags(':method'),
-                    PAST::Stmts.new(
-                        PAST::Op.new(
-                            :pasttype('call'),
-                            :name('infix:eq'), # XXX not generic enough
-                            PAST::Var.new(
-                                :name("$!" ~ $name),
-                                :scope('attribute')
-                            ),
-                            PAST::Val.new( :value(%values{$_}) )
-                        )
-                    )
-                )
-            ));
-        }
-
-        # Now we emit code to create a class for the enum that does the role
-        # that we just defined. Note $def in the init code refers to this
-        # class from now on. Mark the class as an enum.
-        my $class_past := PAST::Stmts.new(
-            PAST::Op.new(
-                :pasttype('bind'),
-                PAST::Var.new(
-                    :name('class_def'),
-                    :scope('register'),
-                    :isdecl(1)
-                ),
-                PAST::Op.new(
-                    :pasttype('call'),
-                    :name('!keyword_enum'),
-                    PAST::Op.new(
-                        :pasttype('callmethod'),
-                        :name('!select'),
-                        PAST::Var.new(
-                            :name('def'),
-                            :scope('register')
-                        )
-                    )
-                )
-            ),
-            PAST::Op.new(
-                :inline('    setprop %0, "enum", %1'),
-                PAST::Var.new(
-                    :name('class_def'),
-                    :scope('register')
-                ),
-                PAST::Var.new(
-                    :name('def'),
-                    :scope('register')
-                )
-            )
-        );
-
-        # Want to give the class an invoke method that returns the enum value,
-        # and get_string, get_number and get_integer v-table overrides to we
-        # can get data from it..
-        $class_past.push(PAST::Op.new(
-            :pasttype('callmethod'),
-            :name('add_vtable_override'),
-            PAST::Var.new(
-                :scope('register'),
-                :name('class_def')
-            ),
-            'invoke',
-            PAST::Block.new(
-                :blocktype('declaration'),
-                :pirflags(":method"),
-                PAST::Var.new(
-                    :name("$!" ~ $name),
-                    :scope('attribute')
-                )
-            )
-        ));
-        $class_past.push(PAST::Op.new(
-            :pasttype('callmethod'),
-            :name('add_vtable_override'),
-            PAST::Var.new(
-                :scope('register'),
-                :name('class_def')
-            ),
-            'get_string',
-            PAST::Block.new(
-                :blocktype('declaration'),
-                :pirflags(":method"),
-                PAST::Op.new(
-                    :pasttype('call'),
-                    :name('prefix:~'),
-                    PAST::Var.new(
-                        :name("$!" ~ $name),
-                        :scope('attribute')
-                    )
-                )
-            )
-        ));
-        $class_past.push(PAST::Op.new(
-            :pasttype('callmethod'),
-            :name('add_vtable_override'),
-            PAST::Var.new(
-                :scope('register'),
-                :name('class_def')
-            ),
-            'get_integer',
-            PAST::Block.new(
-                :blocktype('declaration'),
-                :pirflags(":method"),
-                PAST::Op.new(
-                    :pasttype('call'),
-                    :name('prefix:+'),
-                    PAST::Var.new(
-                        :name("$!" ~ $name),
-                        :scope('attribute')
-                    )
-                )
-            )
-        ));
-        $class_past.push(PAST::Op.new(
-            :pasttype('callmethod'),
-            :name('add_vtable_override'),
-            PAST::Var.new(
-                :scope('register'),
-                :name('class_def')
-            ),
-            'get_number',
-            PAST::Block.new(
-                :blocktype('declaration'),
-                :pirflags(":method"),
-                PAST::Op.new(
-                    :pasttype('call'),
-                    :name('prefix:+'),
-                    PAST::Var.new(
-                        :name("$!" ~ $name),
-                        :scope('attribute')
-                    )
-                )
-            )
-        ));
-
-        # Now we need to create instances of each of these and install them
-        # in a package starting with the enum's name, plus an alias to them
-        # in the current package. Register the symbols in the current block
-        # as we go.
-        our @?BLOCK;
-        for %values.keys() {
-            # Instantiate with value.
-            $class_past.push(PAST::Op.new(
-                :pasttype('bind'),
-                PAST::Var.new(
-                    :name($_),
-                    :namespace($name),
-                    :scope('package')
-                ),
-                PAST::Op.new(
-                    :pasttype('callmethod'),
-                    :name('new'),
-                    PAST::Var.new(
-                        :name('class_def'),
-                        :scope('register')
-                    ),
-                    PAST::Val.new(
-                        :value(%values{$_}),
-                        :named( PAST::Val.new( :value("$!" ~ $name) ) )
-                    )
-                )
-            ));
             @?BLOCK[0].symbol($name ~ '::' ~ $_, :does_abstraction(1));
-
-            # Add alias in current package.
-            # XXX Need to do collision detection, once we've a registry.
-            $class_past.push(PAST::Op.new(
-                :pasttype('bind'),
-                PAST::Var.new(
-                    :name($_),
-                    :scope('package')
-                ),
-                PAST::Var.new(
-                    :name($_),
-                    :namespace($name),
-                    :scope('package')
-                )
-            ));
             @?BLOCK[0].symbol($_, :does_abstraction(1));
         }
 
-        # Assemble all that we build into a statement list and then place it
-        # into the init code.
-        my $loadinit := @?BLOCK[0].loadinit();
-        $loadinit.push($role_past);
-        $loadinit.push($class_past);
+        # Emit call to enum constructor in the block's loadinit.
+        @?BLOCK[0].loadinit().push(PAST::Op.new(
+            :pasttype('call'),
+            :name('!create_enum'),
+            $name,
+            $values
+        ));
 
         # Finally, since it's a decl, we don't have anything to emit at this
         # point; just hand back empty statements block.
@@ -947,7 +709,7 @@ method enum_declarator($/, $key) {
         # Emit runtime call anonymous enum constructor.
         make PAST::Op.new(
             :pasttype('call'),
-            :name('!anon_enum'),
+            :name('!create_anon_enum'),
             $values
         );
     }
@@ -1143,7 +905,6 @@ method signature($/, $key) {
         my $block    := @?BLOCK.shift();
         my $sigpast := $block[0];
         my $loadinit := $block.loadinit();
-        my $sigobj   := PAST::Var.new( :name('signature'), :scope('register') );
 
         block_signature($block);
 
@@ -1161,19 +922,7 @@ method signature($/, $key) {
             }
 
             ##  add parameter to the signature object
-            my $sigparam := PAST::Op.new( :pasttype('callmethod'),
-                                :name('!add_param'), $sigobj, $name );
-
-            ##  if it's named optional or slurpy, note that in the signature object
-            if $var.named() ne "" {
-                $sigparam.push(PAST::Val.new( :value($var.named()), :named('named') ));
-            }
-            if $var.viviself() {
-                $sigparam.push(PAST::Val.new( :value(1), :named('optional') ));
-            }
-            if $var.slurpy() {
-                $sigparam.push(PAST::Val.new( :value(1), :named('slurpy') ));
-            }
+            my $sigparam := make_sigparam( $var );
 
             ##  add any typechecks
             my $type := $var<type>;
@@ -1655,6 +1404,7 @@ method package_def($/, $key) {
 
     my $block := $/{$key}.ast;
     $block.lexical(0);
+    declare_implicit_routine_vars($block);
 
     my $modulename;
     my $is_anon := 0;
@@ -1906,7 +1656,7 @@ method scope_declarator($/) {
                 else {
                     # $scope eq 'package' | 'lexical' | 'state'
                     my $viviself := PAST::Op.new( :pirop('new PsP'), $var<itype> );
-                    if $init_value { $viviself.push( $init_value ); }
+                    if $init_value        { $viviself.push( $init_value ); }
                     $var.viviself( $viviself );
                     if $var<traitlist> {
                         for @($var<traitlist>) {
@@ -1921,24 +1671,26 @@ method scope_declarator($/) {
                         }
                     }
                     if $type {
-                        if $var<sigil> eq '$' {
-                            $var := PAST::Op.new(
-                                :pasttype('call'),
-                                :name('!var_trait_verb_of'),
-                                $var, $type
-                            );
+                        if $var<sigil> ne '$' && $var<sigil> ne '@' && $var<sigil> ne '%' && $var<sigil> ne '' {
+                            $/.panic("Cannot handle typed variables with sigil " ~ $var<sigil>);
                         }
-                        else {
-                            if $var<sigil> ne '@' && $var<sigil> ne '%' && $var<sigil> ne '' {
-                                $/.panic("Cannot handle typed variables with sigil " ~ $var<sigil>);
-                            }
-                            $var := PAST::Op.new(
-                                :pasttype('call'),
-                                :name('!var_trait_verb_of'),
-                                $var,
-                                $type
-                            );
-                        }
+                        $var := PAST::Op.new(
+                            :pasttype('call'),
+                            :name('!var_trait_verb_of'),
+                            $var, $type
+                        );
+                    }
+                    if $sym eq 'constant' {
+                        # Do init in viviself, and then make sure we mark it readonly after
+                        # that point.
+                        $var := PAST::Op.new(
+                            :pasttype('call'),
+                            :name('infix:='),
+                            $var
+                        );
+                        $var := PAST::Op.new( :pirop('setprop'), $var, 'readonly', 1);
+                        $var<constant_value_slot> := $var[0];
+                        $var<scopedecl> := 'constant';
                     }
                 }
                 $past[$i] := $var;
@@ -2062,6 +1814,9 @@ method declarator($/) {
     if $<variable_declarator> {
         $past := $<variable_declarator>.ast;
     }
+    elsif $<constant_declarator> {
+        $past := $<constant_declarator>.ast;
+    }
     elsif $<signature> {
         $past := $<signature>.ast;
         our $?BLOCK_OPEN;
@@ -2103,6 +1858,21 @@ method variable_declarator($/) {
 
     make $var;
 }
+
+
+method constant_declarator($/) {
+    our @?BLOCK;
+    my $past := PAST::Var.new(
+        :name(~$<identifier>),
+        :scope('lexical'),
+    );
+    $past<itype> := container_itype('Perl6Scalar');
+    $past<type>  := PAST::Op.new( :name('and'), :pasttype('call') );
+    $/.add_type(~$<identifier>);
+    @?BLOCK[0].symbol(~$<identifier>, :scope('lexical'));
+    make $past;
+}
+
 
 method variable($/, $key) {
     my $var;
@@ -2148,12 +1918,7 @@ method variable($/, $key) {
 
                 ##  add to block's signature
                 block_signature($?BLOCK);
-                $?BLOCK.loadinit().push(
-                    PAST::Op.new( :pasttype('callmethod'), :name('!add_param'),
-                        PAST::Var.new( :name('signature'), :scope('register') ),
-                        $varname
-                    )
-                );
+                $?BLOCK.loadinit().push( make_sigparam( $param ) );
             }
             ## use twigil-less form afterwards
             $twigil := '';
@@ -2181,6 +1946,8 @@ method variable($/, $key) {
                                             :scope('parameter'),
                                             :slurpy(1) );
                 if $sigil eq '%' { $param.named(1); }
+                block_signature($?BLOCK);
+                $?BLOCK.loadinit().push( make_sigparam( $param ) );
                 $?BLOCK[0].unshift($param);
             }
         }
@@ -2460,6 +2227,7 @@ method quote_expression($/, $key) {
             :blocktype('declaration'),
             :node( $/ )
         );
+        set_block_type($past, 'Regex');
     }
     elsif $key eq 'quote_p5regex' {
         $past := PAST::Block.new(
@@ -2468,6 +2236,7 @@ method quote_expression($/, $key) {
             :blocktype('declaration'),
             :node( $/ )
         );
+        set_block_type($past, 'Regex');
     }
     elsif $key eq 'quote_pir' {
         $past := PAST::Op.new( :inline( $<quote_pir> ), :node($/) );
@@ -2681,6 +2450,10 @@ method EXPR($/, $key) {
                     $rhs
                 )
             );
+        }
+        elsif $lhs<scopedecl> eq 'constant' {
+            $lhs<constant_value_slot>.push($rhs);
+            $past := $lhs;
         }
         else {
             # Just a normal assignment.
@@ -2898,7 +2671,8 @@ method type_declarator($/) {
 
     # Create subset type.
     my @name := Perl6::Compiler.parse_name($<name>);
-    $past := PAST::Op.new(
+    $past.blocktype('declaration');
+    $past.loadinit().push(PAST::Op.new(
         :node($/),
         :pasttype('bind'),
         PAST::Var.new(
@@ -2916,16 +2690,11 @@ method type_declarator($/) {
                     :name('Any'),
                     :scope('package')
                 ),
-            $past
+            PAST::Var.new( :name('block'), :scope('register') )
         )
-    );
+    ));
 
-    # Put this code in loadinit, so the type is created early enough,
-    # then this node results in an empty statement node.
-    our @?BLOCK;
-    @?BLOCK[0].loadinit().push($past);
-
-    make PAST::Stmts.new();
+    make $past;
 }
 
 
@@ -3365,6 +3134,26 @@ sub return_handler_past() {
         )
     )
 }
+
+
+sub make_sigparam($var) {
+    my $sigparam := 
+        PAST::Op.new( :pasttype('callmethod'), :name('!add_param'), 
+                      PAST::Var.new( :name('signature'), :scope('register') ),
+                      $var.name() 
+        );
+    if $var.named() ne "" {
+        $sigparam.push(PAST::Val.new( :value($var.named()), :named('named') ));
+    }
+    if $var.viviself() {
+        $sigparam.push(PAST::Val.new( :value(1), :named('optional') ));
+    }
+    if $var.slurpy() {
+        $sigparam.push(PAST::Val.new( :value(1), :named('slurpy') ));
+    }
+    $sigparam;
+}
+    
 
 # Local Variables:
 #   mode: cperl

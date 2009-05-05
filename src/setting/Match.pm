@@ -14,7 +14,7 @@ class Match is also {
             take $sp;
             take "ast  => {$.ast.perl},\n";
             take $sp;
-            take "text => {$.text.perl},\n";
+            take "Str => {$.Str.perl},\n";
             take $sp;
             take "from => $.from,\n";
             take $sp;
@@ -48,7 +48,9 @@ class Match is also {
 
     method !_perl_quant($obj, $indent) {
         my $sp = ' ' x $indent;
-        if $obj ~~ Match {
+        if $obj ~~ undef {
+            take 'undef';
+        } elsif $obj ~~ Match {
             take $obj!_perl($indent + 3);
         } else {
             take "[\n";
@@ -77,16 +79,16 @@ class Match is also {
     }
 
     multi method chunks() {
-        my $prev = 0;
+        my $prev = $.from;
         gather {
             for @.caps {
                 if .value.from > $prev {
-                    take '~' => self.substr($prev, .value.from - $prev)
+                    take '~' => self.substr($prev - $.from, .value.from - $prev)
                 }
                 take $_;
                 $prev = .value.to;
             }
-            take self.substr($prev) if $prev < self.chars;
+            take ('~' => self.substr($prev - $.from)) if $prev < $.to;
         }
     }
 }

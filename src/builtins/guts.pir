@@ -229,6 +229,12 @@ to find a real, non-subtype and stash that away for fast access later.
     real_type = refinee
   got_real_type:
 
+    # If it's an un-disambiguated role, dis-ambiguate.
+    $I0 = isa real_type, 'Perl6Role'
+    unless $I0 goto role_done
+    real_type = real_type.'!select'()
+  role_done:
+
     # Create subclass.
     .local pmc parrot_class, subset
     parrot_class = p6meta.'get_parrotclass'(refinee)
@@ -510,7 +516,8 @@ is composed (see C<!meta_compose> below).
     metarole = get_class ns
     unless null metarole goto have_role
 
-    info = new 'Hash'
+    $P0 = get_root_namespace ['parrot';'Hash']
+    info = new $P0
     $P0 = nsarray[-1]
     info['name'] = $P0
     info['namespace'] = nsarray
@@ -758,7 +765,8 @@ and C<type>.
     class_handles_list = new 'ResizablePMCArray'
     setprop metaclass, '@!handles_dispatchers', class_handles_list
   have_class_handles_list:
-    handles_hash = new 'Hash'
+    $P1 = get_root_namespace ['parrot';'Hash']
+    handles_hash = new $P1
     handles_hash['attrname'] = name
     handles_hash['match_against'] = $P0
     push class_handles_list, handles_hash
@@ -1191,13 +1199,13 @@ Helper method for creating parametric roles.
 .end
 
 
-=item !keyword_role(name)
+=item !create_simple_role(name)
 
-Internal helper method to create a role.
+Internal helper method to create a role with a single parameterless variant.
 
 =cut
 
-.sub '!keyword_role'
+.sub '!create_simple_role'
     .param string name
     .local pmc info, role, helper
 
@@ -1206,18 +1214,21 @@ Internal helper method to create a role.
     .local pmc ns
     ns = split '::', name
     name = ns[-1]
-    info = new 'Hash'
+    $P0 = get_root_namespace ['parrot';'Hash']
+    info = new $P0
     info['name'] = name
     info['namespace'] = ns
     role = new 'Role', info
 
     # Now we need to wrap it up as a Perl6Role.
-    helper = find_name '!keyword_role_helper'
+    helper = find_name '!create_simple_role_helper'
     helper = clone helper
     setprop helper, '$!metarole', role
     $P0 = new ["Signature"]
     setprop helper, '$!signature', $P0
     role = new ["Perl6Role"]
+    $P0 = box name
+    setprop role, '$!shortname', $P0
     role.'!add_variant'(helper)
 
     # Store it in the namespace.
@@ -1226,7 +1237,7 @@ Internal helper method to create a role.
     set_hll_global ns, $S0, role
     .return(role)
 .end
-.sub '!keyword_role_helper'
+.sub '!create_simple_role_helper'
     $P0 = new 'ParrotInterpreter'
     $P0 = $P0['sub']
     $P0 = getprop '$!metarole', $P0
@@ -1234,77 +1245,13 @@ Internal helper method to create a role.
 .end
 
 
-=item !keyword_enum(name)
-
-Internal helper method to create an enum class.
-
-=cut
-
-.sub '!keyword_enum'
-    .param pmc role
-    .local pmc class
-
-    # Create an anonymous class and attach the role.
-    class = new 'Class'
-    "!keyword_does"(class, role)
-
-    # Register it.
-    .local pmc p6meta
-    p6meta = get_hll_global ['Perl6Object'], '$!P6META'
-    p6meta.'register'(class, 'parent'=>'Any')
-
-    .return(class)
-.end
-
-
-=item !keyword_does(class, role)
-
-Internal helper method to implement the functionality of the does keyword.
-
-=cut
-
-.sub '!keyword_does'
-    .param pmc class
-    .param pmc role
-
-    # Ensure that role really is a role.
-    $I0 = isa role, 'Role'
-    if $I0 goto role_ok
-    'die'('does keyword can only be used with roles.')
-  role_ok:
-
-    # Get Parrot to compose the role for us (handles the methods), then call
-    # attribute composer.
-    addrole class, role
-    '!compose_role_attributes'(class, role)
-.end
-
-
-=item !keyword_has(class, attr_name, type)
-
-Adds an attribute with the given name to the class or role.
-
-=cut
-
-.sub '!keyword_has'
-    .param pmc class
-    .param string attr_name
-    .param pmc type     :optional
-    .param int got_type :opt_flag
-    if got_type goto with_type
-    .tailcall '!meta_attribute'(class, attr_name, 'Perl6Scalar')
-  with_type:
-    .tailcall '!meta_attribute'(class, attr_name, 'Perl6Scalar', 'type'=>type)
-.end
-
-
-=item !anon_enum(value_list)
+=item !create_anon_enum(value_list)
 
 Constructs a Mapping, based upon the values list.
 
 =cut
 
-.sub '!anon_enum'
+.sub '!create_anon_enum'
     .param pmc values
 
     # Put the values into list context, so case of a single valued enum works.
@@ -1344,6 +1291,181 @@ Constructs a Mapping, based upon the values list.
 .end
 
 
+=item !create_enum(name, type, value_list)
+
+Constructs an enumeration.
+
+=cut
+
+.sub '!create_enum'
+    .param string name
+    .param pmc values
+
+    # Use !create_anon_enum to associate all names with their underlying
+    # values.
+    values = '!create_anon_enum'(values)
+
+    # Create a role for the enumeration and mark it as an enum.
+    .local pmc para_role, role
+    para_role = '!create_simple_role'(name)
+    role = para_role.'!select'()
+    $P0 = box 1
+    setprop role, '$!is_enum', $P0
+
+    # Compute short name and add attribute to the role; type is this
+    # role so that you can only store other enum elements in the slut.
+    .local pmc ns, outer_ns
+    .local string short_name, attr_name
+    $P0 = get_hll_global [ 'Perl6';'Compiler' ], 'parse_name'
+    $P1 = null
+    ns = $P0($P1, name)
+    outer_ns = clone ns
+    short_name = pop outer_ns
+    attr_name = concat "$!", short_name
+    '!meta_attribute'(role, attr_name, 'Perl6Scalar', 'type'=>role)
+    
+    # Add an l-value accessor method for the attribute.
+    .local pmc attr_name_pmc, accessor
+    attr_name_pmc = box attr_name
+    .lex '$attr_name', attr_name_pmc
+    .const 'Sub' accessor = '!create_enum_helper_accessor'
+    accessor = newclosure accessor
+    role.'add_method'(short_name, accessor)
+
+    # Next, we need methods on the role for each variant, returning
+    # a true or false value depending on if the current value of the
+    # enum is set to that.
+    .const 'Sub' checker_create = '!create_enum_helper_checker_create'
+    .local pmc it, cur_value
+    it = iter values
+  checker_loop:
+    unless it goto checker_loop_end
+    $S0 = shift it
+    cur_value = values[$S0]
+    $P0 = checker_create(attr_name, cur_value)
+    role.'add_method'($S0, $P0)
+    goto checker_loop
+  checker_loop_end:
+
+    # We'll make a list of the values and the .pick method on the role will
+    # use that (Enum.pick then just works through punning).
+    .local pmc value_list
+    .local string value_name
+    $P0 = get_root_namespace ['parrot';'ResizablePMCArray']
+    value_list = new $P0
+    .lex '@values', value_list
+    .const 'Sub' pick = '!create_enum_helper_pick'
+    pick = newclosure pick
+    role.'add_method'('pick', pick)
+
+    # Go over all of the values...
+    it = iter values
+  value_loop:
+    unless it goto value_loop_end
+    value_name = shift it
+    cur_value = values[value_name]
+
+    # Mix the enum role into it, so Val ~~ Enum will work, and set the value
+    # field to itself plus set it readonly.
+    cur_value = 'infix:but'(cur_value, role)
+    $P0 = cur_value.short_name()
+    copy $P0, cur_value
+    $P1 = box 1
+    setprop $P0, 'readonly', $P1
+
+    # It should also do Abstraction.
+    $P0 = get_hll_global 'Abstraction'
+    'infix:does'(cur_value, $P0)
+
+    # Now create and mix in another role to provide .WHAT, .perl and .name.
+    $S0 = concat name, '::'
+    $S0 = concat value_name
+    $P0 = '!create_enum_value_role'(role, $S0, value_name)
+    'infix:does'(cur_value, $P0)
+
+    # Put it onto the list for .pick and install it in the namespace(s).
+    push value_list, cur_value
+    set_hll_global ns, value_name, cur_value
+    set_hll_global outer_ns, value_name, cur_value
+
+    goto value_loop
+  value_loop_end:
+.end
+.sub '!create_enum_helper_accessor' :method :outer('!create_enum')
+    $P0 = find_lex '$attr_name'
+    $S0 = $P0
+    $P0 = getattribute self, $S0
+    .return ($P0)
+.end
+.sub '!create_enum_helper_checker_create'
+    .param pmc attr_name
+    .param pmc value
+    .lex '$attr_name', attr_name
+    .lex '$value', value
+    .const 'Sub' $P0 = '!create_enum_helper_checker'
+    $P0 = newclosure $P0
+    .return ($P0)
+.end
+.sub '!create_enum_helper_checker' :method :outer('!create_enum_helper_checker_create')
+    $P0 = find_lex '$attr_name'
+    $S0 = $P0
+    $P0 = getattribute self, $S0
+    $P1 = find_lex '$value'
+    .tailcall 'infix:eq'($P0, $P1)
+.end
+.sub '!create_enum_helper_pick' :method :outer('!create_enum')
+    .param pmc pos_args :slurpy
+    $P0 = find_lex '@values'
+    $P0 = 'list'($P0 :flat)
+    .tailcall $P0.'pick'(pos_args :flat)
+.end
+.sub '!create_enum_value_role'
+    .param pmc enum_role
+    .param pmc long_name
+    .param pmc short_name
+    .lex '$enum_role', enum_role
+    .lex '$long_name', long_name
+    .lex '$short_name', short_name
+    $P0 = new 'Role'
+    .const 'Sub' ACCEPTS = '!create_enum_value_role_ACCEPTS'
+    ACCEPTS = newclosure ACCEPTS
+    $P0.'add_method'('ACCEPTS', ACCEPTS)
+    .const 'Sub' WHAT = '!create_enum_value_role_WHAT'
+    WHAT = newclosure WHAT
+    $P0.'add_method'('WHAT', WHAT)
+    .const 'Sub' name = '!create_enum_value_role_name'
+    name = newclosure name
+    $P0.'add_method'('name', name)
+    .const 'Sub' perl = '!create_enum_value_role_perl'
+    perl = newclosure perl
+    $P0.'add_method'('perl', perl)
+    .return ($P0)
+.end
+.sub '!create_enum_value_role_ACCEPTS' :method :outer('!create_enum_value_role')
+    .param pmc topic
+    $P0 = find_lex '$enum_role'
+    $I0 = does topic, $P0
+    unless $I0 goto done
+    $P0 = find_lex '$short_name'
+    $S0 = $P0
+    $I0 = topic.$S0()
+  done:
+    .return ($I0)
+.end
+.sub '!create_enum_value_role_WHAT' :method :outer('!create_enum_value_role')
+    $P0 = find_lex '$enum_role'
+    .return ($P0)
+.end
+.sub '!create_enum_value_role_name' :method :outer('!create_enum_value_role')
+    $P0 = find_lex '$short_name'
+    .return ($P0)
+.end
+.sub '!create_enum_value_role_perl' :method :outer('!create_enum_value_role')
+    $P0 = find_lex '$long_name'
+    .return ($P0)
+.end
+
+
 =item !fixup_routine_type(sub, new_type)
 
 Reblesses a sub into a new type.
@@ -1376,7 +1498,8 @@ Loads any existing values of state variables for a block.
     $P0 = $P0['sub'; 1]
     state_store = getprop '$!state_store', $P0
     unless null state_store goto have_state_store
-    state_store = new 'Hash'
+    $P1 = get_root_namespace ['parrot';'Hash']
+    state_store = new $P1
     setprop $P0, '$!state_store', state_store
   have_state_store:
 

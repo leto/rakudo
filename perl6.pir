@@ -8,9 +8,25 @@ This is the base file for the Rakudo Perl 6 compiler.
 
 =cut
 
+# Set RAKUDO_HLL to 'Perl6' to try compiling Rakudo in its own HLL.
+.macro_const RAKUDO_HLL 'parrot'
+
+.HLL .RAKUDO_HLL
+
 .loadlib 'perl6_group'
 .loadlib 'perl6_ops'
-.include 'src/pctextensions/state.pir'
+
+.namespace []
+.sub '' :anon :init :load
+    .local pmc p6meta
+    load_bytecode 'PCT.pbc'
+    $P0 = get_root_global ['parrot'], 'P6metaclass'
+    $P0.'new_class'('Perl6Object', 'name'=>'Object')
+    p6meta = $P0.'HOW'()
+    set_hll_global ['Perl6Object'], '$!P6META', p6meta
+.end
+
+
 .include 'src/gen_builtins.pir'
 
 =head2 Functions
@@ -23,7 +39,7 @@ Creates the Perl 6 compiler by subclassing a C<PCT::HLLCompiler> object.
 
 =cut
 
-.namespace [ 'Perl6';'Compiler' ]
+.namespace ['Perl6';'Compiler']
 
 .sub 'onload' :load :init :anon
     load_bytecode 'PCT.pbc'
@@ -86,19 +102,32 @@ USAGE
     $P0 .= ".\n\nCopyright 2006-2008, The Perl Foundation.\n"
     setattribute perl6, '$version', $P0
 
-    ##  create a list for holding the stack of nested blocks
-    $P0 = new ['List']
+    $P0 = box .RAKUDO_HLL
+    set_hll_global ['Perl6';'Grammar';'Actions'], '$?RAKUDO_HLL', $P0
+
+    ##  create an array for holding the stack of nested blocks
+    $P99 = get_hll_global 'Array'
+    $P0 = $P99.'new'()
     set_hll_global ['Perl6';'Grammar';'Actions'], '@?BLOCK', $P0
 
     ## create a list for holding the stack of nested package
     ## declarators
-    $P0 = new 'List'
+    $P0 = $P99.'new'()
     set_hll_global ['Perl6';'Grammar';'Actions'], '@?PKGDECL', $P0
+
+    ## create a list for holding the stack of nested scope
+    ## declarators
+    $P0 = $P99.'new'()
+    set_hll_global ['Perl6';'Grammar';'Actions'], '@?SCOPE', $P0
+
+    ##  create a list of END blocks to be run
+    $P0 = $P99.'new'()
+    set_hll_global ['Perl6'], '@?END_BLOCKS', $P0
 
     ## create a list for holding the stack of nested package
     ## namespaces (we store the namespace as a flat, ::
     ## separated string for now, for handing to .parse_name)
-    $P0 = new 'List'
+    $P0 = $P99.'new'()
     set_hll_global ['Perl6';'Grammar';'Actions'], '@?NS', $P0
 
     ## create a (shared) metaclass node
@@ -107,18 +136,25 @@ USAGE
     set_hll_global ['Perl6';'Grammar';'Actions'], '$?METACLASS', $P0
 
     ## create the $?CLASSMAP hash
-    $P0 = new ['Hash']
+    $P0 = get_root_namespace ['parrot';'Hash']
+    $P0 = new $P0
     set_hll_global ['Perl6';'Grammar';'Actions'], '%?CLASSMAP', $P0
-
-    ##  create a list of END blocks to be run
-    $P0 = new 'List'
-    set_hll_global ['Perl6'], '@?END_BLOCKS', $P0
 
     ##  tell PAST::Var how to encode Perl6Str and Str values
     $P0 = get_hll_global ['PAST';'Compiler'], '%valflags'
     $P0['Perl6Str'] = 'e'
     $P0['Str'] = 'e'
 .end
+
+.include 'src/gen_setting.pir'
+.include 'src/gen_grammar.pir'
+.include 'src/parser/expression.pir'
+.include 'src/parser/methods.pir'
+.include 'src/parser/quote_expression.pir'
+.include 'src/gen_actions.pir'
+.include 'src/gen_metaop.pir'
+.include 'src/gen_junction.pir'
+.include 'src/gen_whatever.pir'
 
 
 .namespace ['Perl6';'Compiler']
@@ -222,18 +258,6 @@ to the Perl 6 compiler.
 
 =back
 
-=cut
-
-.include 'src/gen_setting.pir'
-.include 'src/gen_grammar.pir'
-.include 'src/parser/expression.pir'
-.include 'src/parser/methods.pir'
-.include 'src/parser/quote_expression.pir'
-.include 'src/gen_actions.pir'
-.include 'src/gen_metaop.pir'
-.include 'src/gen_junction.pir'
-.include 'src/gen_whatever.pir'
-
 =item postload()
 
 Perform any tasks that need to be done at the end of loading.
@@ -270,7 +294,11 @@ Currently this does the equivalent of EXPORTALL on the core namespaces.
 
 ##  This goes at the bottom because the methods end up in the 'parrot'
 ##  HLL namespace.
-
+.HLL 'parrot'
+.include 'src/parrot/ClassHOW.pir'
+.include 'src/parrot/Protoobject.pir'
+.include 'src/parrot/misc.pir'
+.include 'src/parrot/state.pir'
 .include 'src/gen_uprop.pir'
 
 # Local Variables:

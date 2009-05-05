@@ -10,7 +10,7 @@ src/classes/List.pir - Perl 6 List class and related functions
 .sub '' :anon :load :init
     .local pmc p6meta, listproto
     p6meta = get_hll_global ['Perl6Object'], '$!P6META'
-    listproto = p6meta.'new_class'('List', 'parent'=>'ResizablePMCArray Any')
+    listproto = p6meta.'new_class'('List', 'parent'=>'parrot;ResizablePMCArray Any')
     $P0 = get_hll_global 'Positional'
     $P0 = $P0.'!select'()
     p6meta.'add_role'($P0, 'to'=>listproto)
@@ -40,8 +40,6 @@ Smart-matches against the list.
 
     # Need to DWIM on *s.
   array:
-    .local pmc whatever
-    whatever = get_hll_global 'Whatever'
     .local pmc it_a, it_b, cur_a, cur_b
     it_a = iter self
     it_b = iter topic
@@ -53,7 +51,7 @@ Smart-matches against the list.
     cur_b = shift it_b
 
     # If there curent thing is Whatever, need special handling.
-    $I0 = isa cur_a, whatever
+    $I0 = isa cur_a, ['Whatever']
     unless $I0 goto not_whatever
 
     # If we don't have anything left other than the Whatever, it matches any
@@ -64,7 +62,7 @@ Smart-matches against the list.
     unless it_a goto true
     .local pmc looking_for
     looking_for = shift it_a
-    $I0 = isa looking_for, whatever
+    $I0 = isa looking_for, ['Whatever']
     if $I0 goto handle_whatever
   whatever_loop:
     $P0 = 'infix:==='(looking_for, cur_b)
@@ -86,7 +84,7 @@ Smart-matches against the list.
     unless $I0 goto false
     unless it_a goto it_loop_end
     cur_a = shift it_a
-    $I0 = isa cur_a, whatever
+    $I0 = isa cur_a, ['Whatever']
     if $I0 goto handle_whatever
     unless it_b goto false
     goto it_loop
@@ -155,25 +153,6 @@ A list in Scalar context becomes a Scalar containing an Array.
     $S0 = join ' ', self
     .return ($S0)
 .end
-
-=item ResizablePMCArray.list
-
-This version of list morphs a ResizablePMCArray into a List.
-
-=cut
-
-.namespace ['ResizablePMCArray']
-.sub 'list' :method
-    ##  this code morphs a ResizablePMCArray into a List
-    ##  without causing a clone of any of the elements
-    $P0 = new 'ResizablePMCArray'
-    splice $P0, self, 0, 0
-    $P1 = new 'List'
-    copy self, $P1
-    splice self, $P0, 0, 0
-    .return (self)
-.end
-
 
 =back
 

@@ -107,7 +107,8 @@ Selects a variant of the role to do based upon the supplied parameters.
     .local pmc selector
     selector = getattribute self, '$!selector'
     result = selector(pos_args :flat, name_args :flat :named)
-    ins_hash = new 'Hash'
+    $P0 = get_root_namespace ['parrot';'Hash']
+    ins_hash = new $P0
     ins_hash["pos_args"] = pos_args
     ins_hash["role"] = result
     push created_list, ins_hash
@@ -189,6 +190,16 @@ just here so postcircumfix:[ ] doesn't explode).
 .end
 
 
+=item perl
+
+=cut
+
+.sub 'perl' :method
+    $P0 = getprop '$!shortname', self
+    .return ($S0)
+.end
+
+
 =item WHICH
 
 =cut
@@ -214,7 +225,9 @@ just here so postcircumfix:[ ] doesn't explode).
 
 .sub 'Str' :method :vtable('get_string')
     $P0 = getprop '$!shortname', self
-    .return ($P0)
+    $S0 = $P0
+    concat $S0, '()'
+    .return ($S0)
 .end
 
 
@@ -333,6 +346,28 @@ Puns the role to a class and returns that class.
     .tailcall 'prefix:!'($P0)
 .end
 
+
+=item perl
+
+=cut
+
+.sub 'perl' :method
+    .local pmc args, it
+    args = getprop '@!type_args', self
+    $P0 = getprop '$!shortname', self
+    $S0 = $P0
+    $S0 = concat $S0, '['
+    it = iter args
+  it_loop:
+    unless it goto it_loop_end
+    $P0 = shift it
+    $S1 = $P0.'perl'()
+    $S0 = concat $S1
+    goto it_loop
+  it_loop_end:
+    $S0 = concat ']'
+    .return ($S0)
+.end
 
 =item WHICH
 

@@ -10,7 +10,7 @@
 # 
 # S03-operators/binding-arrays.t - regressed to allow slices
 # S03-operators/binding-hashes.t - regressed to allow slices
-# S10-packages/import.t - regressed when implementing importing; think it's bogus anyway
+# integration/rule-in-class-Str.t - 'is also' -> augment
 
 integration/99problems-01-to-10.t
 integration/99problems-11-to-20.t
@@ -24,10 +24,11 @@ integration/lexical-array-in-inner-block.t
 integration/lexicals-and-attributes.t
 integration/man-or-boy.t
 integration/method-calls-and-instantiation.t
+integration/no-indirect-new.t
+integration/packages.t
 integration/pair-in-array.t
 integration/passing-pair-class-to-sub.t
 integration/real-strings.t
-integration/rule-in-class-Str.t
 integration/say-crash.t
 integration/substr-after-match-in-gather-in-for.t
 S02-builtin_data_types/anon_block.t
@@ -54,6 +55,7 @@ S02-builtin_data_types/range.t
 S02-builtin_data_types/subscripts_and_context.t
 S02-builtin_data_types/type.t
 S02-builtin_data_types/whatever.t
+S02-lexical-conventions/unicode.t                          # icu
 S02-literals/array-interpolation.t
 S02-literals/autoref.t
 S02-literals/char-by-name.t                                # icu
@@ -131,6 +133,7 @@ S04-blocks-and-statements/pointy-rw.t
 S04-blocks-and-statements/pointy.t
 S04-closure-traits/end.t
 S04-closure-traits/start.t
+S04-declarations/constant.t
 S04-declarations/implicit-parameter.t
 S04-declarations/multiple.t
 S04-declarations/my.t
@@ -182,6 +185,7 @@ S05-match/arrayhash.t
 S05-match/blocks.t
 S05-match/capturing-contexts.t
 S05-match/non-capturing.t
+S05-match/perl.t
 S05-match/positions.t
 S05-metachars/line-anchors.t
 S05-metachars/newline.t
@@ -275,6 +279,7 @@ S12-construction/new.t
 S12-enums/anonymous.t
 S12-enums/as-role.t
 S12-enums/basic.t
+S12-enums/thorough.t
 S12-introspection/can.t
 S12-methods/calling_sets.t
 S12-methods/calling_syntax.t
@@ -288,20 +293,20 @@ S12-methods/syntax.t
 S12-methods/topic.t
 S12-methods/typed-attributes.t
 S12-methods/what.t
-S12-role/attributes.t
-S12-role/basic.t
-S12-role/composition.t
-S12-role/crony.t
-S12-role/instantiation.t
-S12-role/mixin.t
-S12-role/namespaced.t
-S12-role/parameter-subtyping.t
-S12-role/parameterized-basic.t
-S12-role/parameterized-mixin.t
-S12-role/parameterized-type.t
 S12-subset/multi-dispatch.t
 S12-subset/subtypes.t
 S13-type-casting/methods.t
+S14-roles/attributes.t
+S14-roles/basic.t
+S14-roles/composition.t
+S14-roles/crony.t
+S14-roles/instantiation.t
+S14-roles/mixin.t
+S14-roles/namespaced.t
+S14-roles/parameter-subtyping.t
+S14-roles/parameterized-basic.t
+S14-roles/parameterized-mixin.t
+S14-roles/parameterized-type.t
 S16-filehandles/filetest.t
 S16-filehandles/io.t
 S16-filehandles/io_in_for_loops.t
@@ -383,6 +388,6 @@ S32-str/sprintf.t
 S32-str/substr.t
 S32-str/trim.t
 S32-str/ucfirst.t
-S32-str/uc.t
+S32-str/uc.t                                               # icu
 S32-str/unpack.t
 S32-trig/trig.t
