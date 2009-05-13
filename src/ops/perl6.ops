@@ -11,6 +11,16 @@ VERSION = PARROT_VERSION;
 #  include <unicode/uchar.h>
 #endif
 
+/*
+
+=item rebless_subclass(in PMC, in PMC)
+
+Takes PMC $1 and reblesses it in-place, without any change of address, to be
+an instance of class $2, where $2 is a subclass of the class of $1.
+
+=cut
+
+*/
 inline op rebless_subclass(in PMC, in PMC) :base_core {
     PMC *value;
 
@@ -112,7 +122,17 @@ inline op rebless_subclass(in PMC, in PMC) :base_core {
     goto NEXT();
 }
 
-inline op find_lex_lift(out PMC, in STR) :base_core {
+/*
+
+=item find_lex_skip_current(out PMC, in STR)
+
+Finds the lexical named $2 and returns it. However, unlike find_lex this op
+skips the current sub and starts looking immediately at its outers.
+
+=cut
+
+*/
+inline op find_lex_skip_current(out PMC, in STR) :base_core {
     Parrot_Context *ctx = CONTEXT(interp);
     $1 = PMCNULL;
     
@@ -132,6 +152,16 @@ inline op find_lex_lift(out PMC, in STR) :base_core {
 }
 
 
+/*
+
+=item inline op is_uprop(out INT, in STR, in STR, in INT)
+
+Sets a true value in $1 if character $4 in string $3 has the unicode property
+named $2.
+
+=cut
+
+*/
 inline op is_uprop(out INT, in STR, in STR, in INT) :base_core {
 #if PARROT_HAS_ICU
     char     *cstr;
@@ -210,6 +240,56 @@ inline op is_uprop(out INT, in STR, in STR, in INT) :base_core {
 #endif
 }
 
+
+/*
+
+=item get_next_candidate_info(out PMC, out PMC, out PMC)
+
+Looks through the outers of our caller, until we find a Routine, for a lexical
+named __CANDIDATE_LIST__. Hands this lexical back in $1, the PMC for the Routine
+it was found in as $2 and the lexpad of that routine as $3. This is a fairly
+special-purpose op that does just what callwith, callsame, nextwith and
+nextsame need.
+
+=cut
+
+*/
+inline op get_next_candidate_info(out PMC, out PMC, out PMC) :base_core {
+    Parrot_Context *ctx         = CONTEXT(interp)->caller_ctx;
+    STRING         *name        = string_from_literal(interp, "__CANDIDATE_LIST__");
+    STRING         *wrapper     = string_from_literal(interp, "$!wrapper_block");
+    PMC            *last_lexpad = PMCNULL;
+    PMC            *last_sub    = PMCNULL;
+
+    while (ctx) {
+        /* See if we've found a candidate list. */
+        PMC *lexpad = ctx->lex_pad;
+        PMC *clist  = VTABLE_get_pmc_keyed_str(interp, lexpad, name);
+        if (!PMC_IS_NULL(clist)) {
+            /* Found. Set results and we're done. */
+            $1 = clist;
+            if (PMC_IS_NULL(VTABLE_getprop(interp, ctx->current_sub, wrapper))) {
+                $2 = ctx->current_sub;
+                $3 = lexpad;
+            }
+            else {
+                $2 = last_sub;
+                $3 = last_lexpad;
+            }
+            break;
+        }
+        else {
+            /* Not found; keep looking. */
+            last_sub = ctx->current_sub;
+            last_lexpad = lexpad;
+            ctx = ctx->outer_ctx;
+        }
+    }
+    if (!ctx)
+        $1 = $2 = $3 = PMCNULL;
+
+    goto NEXT();
+}
 
 /*
  * Local variables:

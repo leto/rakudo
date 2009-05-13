@@ -11,6 +11,9 @@
 # S03-operators/binding-arrays.t - regressed to allow slices
 # S03-operators/binding-hashes.t - regressed to allow slices
 # integration/rule-in-class-Str.t - 'is also' -> augment
+# S12-class/extending-arrays.t - 'is also' -> augment
+# S12-class/open.t - 'is also' -> augment
+# S12-class/is_also_instead.t - 'is also' -> augment
 
 integration/99problems-01-to-10.t
 integration/99problems-11-to-20.t
@@ -37,6 +40,7 @@ S02-builtin_data_types/array_ref.t
 S02-builtin_data_types/array.t
 S02-builtin_data_types/assigning-refs.t
 S02-builtin_data_types/bool.t
+S02-builtin_data_types/capture.t
 S02-builtin_data_types/catch_type_cast_mismatch.t
 S02-builtin_data_types/flattening.t
 S02-builtin_data_types/hash_ref.t
@@ -60,6 +64,7 @@ S02-literals/array-interpolation.t
 S02-literals/autoref.t
 S02-literals/char-by-name.t                                # icu
 S02-literals/char-by-number.t
+S02-literals/fmt-interpolation.t
 S02-literals/hash-interpolation.t
 S02-literals/hex_chars.t
 S02-literals/listquote.t
@@ -74,10 +79,13 @@ S02-literals/string-interpolation.t
 S02-literals/sub-calls.t
 S02-literals/types.t
 S02-literals/underscores.t
+S02-magicals/config.t
 S02-magicals/dollar_bang.t
 S02-magicals/dollar-underscore.t
+S02-magicals/env.t
 S02-magicals/progname.t
 S02-names_and_variables/fmt.t
+S02-names_and_variables/perl.t
 S02-names_and_variables/names.t
 S02-names_and_variables/varnames.t
 S02-one-pass-parsing/less-than.t
@@ -248,6 +256,7 @@ S09-autovivification/autoincrement.t
 S09-subscript_slice/slice.t
 S09-typed-arrays/arrays.t
 S09-typed-arrays/hashes.t
+S10-packages/basic.t
 S10-packages/use-with-class.t
 S11-modules/export.t
 S11-modules/import.t
@@ -265,13 +274,10 @@ S12-class/anonymous.t
 S12-class/attributes.t
 S12-class/basic.t
 S12-class/declaration-order.t
-S12-class/extending-arrays.t
 S12-class/inheritance-class-methods.t
 S12-class/inheritance.t
 S12-class/instantiate.t
-S12-class/is_also_instead.t
 S12-class/namespaced.t
-S12-class/open.t
 S12-class/parent_attributes.t
 S12-construction/autopairs.t
 S12-construction/construction.t
@@ -281,13 +287,17 @@ S12-enums/as-role.t
 S12-enums/basic.t
 S12-enums/thorough.t
 S12-introspection/can.t
+S12-introspection/meta-class.t
+S12-introspection/walk.t
 S12-methods/calling_sets.t
 S12-methods/calling_syntax.t
+S12-methods/chaining.t
 S12-methods/class-and-instance.t
 S12-methods/default-trait.t
 S12-methods/indirect_notation.t
 S12-methods/instance.t
 S12-methods/multi.t
+S12-methods/parallel-dispatch.t
 S12-methods/private.t
 S12-methods/syntax.t
 S12-methods/topic.t
@@ -342,6 +352,7 @@ S32-hash/keys_values.t
 S32-hash/pairs.t
 S32-hash/push.t
 S32-hash/slice.t
+S32-io/IO-Socket-INET.t
 S32-list/end.t
 S32-list/first.t
 S32-list/grep.t
@@ -370,10 +381,10 @@ S32-num/sqrt.t
 S32-scalar/defined.t
 S32-scalar/undef.t
 S32-str/append.t
-S32-str/capitalize.t
+S32-str/capitalize.t                                       # icu
 S32-str/chomp.t
 S32-str/chop.t
-S32-str/comb.t
+S32-str/comb.t                                             # icu
 S32-str/flip.t
 S32-str/index.t
 S32-str/lcfirst.t
@@ -390,4 +401,5 @@ S32-str/trim.t
 S32-str/ucfirst.t
 S32-str/uc.t                                               # icu
 S32-str/unpack.t
+S32-str/words.t                                            # icu
 S32-trig/trig.t

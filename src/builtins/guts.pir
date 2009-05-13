@@ -125,6 +125,90 @@ way. Otherwise, it uses .^dispatch from the metaclass.
 .end
 
 
+=item !dispatch_method_indirect
+
+Does an indirect method dispatch.
+
+=cut
+
+.sub '!dispatch_method_indirect'
+    .param pmc obj
+    .param pmc methodish
+    .param pmc pos_args  :slurpy
+    .param pmc name_args :slurpy :named
+
+    $P0 = get_hll_global 'Callable'
+    $I0 = $P0.'ACCEPTS'(methodish)
+    unless $I0 goto candidate_list
+    .tailcall methodish(obj, pos_args :flat, name_args :flat :named)
+
+  candidate_list:
+    $P0 = new 'P6Invocation', methodish
+    .tailcall $P0(obj, pos_args :flat, name_args :flat :named)
+.end
+
+
+=item !dispatch_dispatcher_parallel
+
+Does a parallel method dispatch over an existing dispatcher. Just invokes the normal
+dispatcher for each thingy we're dispatching over.
+
+=cut
+
+.sub '!dispatch_dispatcher_parallel'
+    .param pmc invocanty
+    .param string dispatcher
+    .param pmc pos_args        :slurpy
+    .param pmc named_args      :slurpy :named
+
+    .local pmc it, result, disp
+    disp = find_name dispatcher
+    result = new ['Perl6Array']
+    invocanty = invocanty.'list'()
+    it = iter invocanty
+  it_loop:
+    unless it goto it_loop_done
+    $P0 = shift it
+    $P0 = disp($P0, pos_args :flat, named_args :flat :named)
+    $P0 = $P0.'Scalar'()
+    result.'push'($P0)
+    goto it_loop
+  it_loop_done:
+
+    .return (result)
+.end
+
+
+=item !dispatch_method_parallel
+
+Does a parallel method dispatch. Invokes the method for each thing in the
+array of invocants.
+
+=cut
+
+.sub '!dispatch_method_parallel'
+    .param pmc invocanty
+    .param string name
+    .param pmc pos_args        :slurpy
+    .param pmc named_args      :slurpy :named
+
+    .local pmc it, result
+    result = new ['Perl6Array']
+    invocanty = invocanty.'list'()
+    it = iter invocanty
+  it_loop:
+    unless it goto it_loop_done
+    $P0 = shift it
+    $P0 = $P0.name(pos_args :flat, named_args :flat :named)
+    $P0 = $P0.'Scalar'()
+    result.'push'($P0)
+    goto it_loop
+  it_loop_done:
+
+    .return (result)
+.end
+
+
 =item !VAR
 
 Helper function for implementing the VAR and .VAR macros.
@@ -558,10 +642,13 @@ and creating the protoobjects.
     .local pmc roles, roles_it
     roles = getprop '@!roles', metaclass
     if null roles goto roles_it_loop_end
+    roles = '!get_flattened_roles_list'(roles)
     roles_it = iter roles
   roles_it_loop:
     unless roles_it goto roles_it_loop_end
     $P0 = shift roles_it
+    $I0 = does metaclass, $P0
+    if $I0 goto roles_it_loop
     metaclass.'add_role'($P0)
     '!compose_role_attributes'(metaclass, $P0)
     goto roles_it_loop
@@ -579,30 +666,49 @@ and creating the protoobjects.
 .end
 
 
-=item !meta_compose(Role metarole)
+=item !get_flattened_roles_list
 
-Composes roles.
+Flattens out the list of roles.
+
+=cut
+
+.sub '!get_flattened_roles_list'
+    .param pmc unflat_list
+    .local pmc flat_list, it, cur_role, nested_roles, nested_it
+    flat_list = new 'ResizablePMCArray'
+    it = iter unflat_list
+  it_loop:
+    unless it goto it_loop_end
+    cur_role = shift it
+    $I0 = isa cur_role, 'Role'
+    unless $I0 goto error_not_a_role
+    push flat_list, cur_role
+    nested_roles = getprop '@!roles', cur_role
+    if null nested_roles goto it_loop
+    nested_roles = '!get_flattened_roles_list'(nested_roles)
+    nested_it = iter nested_roles
+  nested_it_loop:
+    unless nested_it goto it_loop
+    $P0 = shift nested_it
+    push flat_list, $P0
+    goto nested_it_loop
+  it_loop_end:
+    .return (flat_list)
+  error_not_a_role:
+    'die'('Can not compose a non-role.')
+.end
+
+
+=item !meta_compose(Role)
+
+Role meta composer -- does nothing.
 
 =cut
 
 .sub '!meta_compose' :multi(['Role'])
-    .param pmc metarole
-
-    # Parrot handles composing methods into roles, but we need to handle the
-    # attribute composition ourselves.
-    .local pmc roles, roles_it
-    roles = getprop '@!roles', metarole
-    if null roles goto roles_it_loop_end
-    roles_it = iter roles
-  roles_it_loop:
-    unless roles_it goto roles_it_loop_end
-    $P0 = shift roles_it
-    metarole.'add_role'($P0)
-    '!compose_role_attributes'(metarole, $P0)
-    goto roles_it_loop
-  roles_it_loop_end:
-
-    .return (metarole)
+    .param pmc metaclass
+    # Currently, nothing to do.
+    .return (metaclass)
 .end
 
 
@@ -1238,7 +1344,7 @@ Internal helper method to create a role with a single parameterless variant.
     .return(role)
 .end
 .sub '!create_simple_role_helper'
-    $P0 = new 'ParrotInterpreter'
+    $P0 = getinterp
     $P0 = $P0['sub']
     $P0 = getprop '$!metarole', $P0
     .return ($P0)
@@ -1493,7 +1599,7 @@ Loads any existing values of state variables for a block.
 
 .sub '!state_var_init'
     .local pmc lexpad, state_store, names_it
-    $P0 = new 'ParrotInterpreter'
+    $P0 = getinterp
     lexpad = $P0['lexpad'; 1]
     $P0 = $P0['sub'; 1]
     state_store = getprop '$!state_store', $P0
@@ -1523,7 +1629,7 @@ initialized already.
 
 .sub '!state_var_inited'
     .param string name
-    $P0 = new 'ParrotInterpreter'
+    $P0 = getinterp
     $P0 = $P0['sub'; 1]
     $P0 = getprop '$!state_store', $P0
     $P0 = $P0[name]

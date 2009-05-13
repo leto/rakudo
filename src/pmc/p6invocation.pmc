@@ -22,9 +22,28 @@ gets stuck into the lex pad to represent the the candidate list.
 
 /* This does the grunt work of working out what the next candidate is. Takes
  * account of us maybe needing to look into multi variants and all that lot. */
-static PMC *get_next_candidate(PARROT_INTERP, PMC *self, PMC *pos_args) {
-    /* XXX TODO... */
-    return PMCNULL;
+static PMC *get_next_candidate(PARROT_INTERP, PMC *SELF) {
+    PMC    *candidates, *current;
+    INTVAL  position;
+
+    /* Get candidates and position. */
+    GETATTR_P6Invocation_candidate_list(interp, SELF, candidates);
+    GETATTR_P6Invocation_position(interp, SELF, position);
+
+    /* Make sure we're not past the end of the candidate list. */
+    if (position >= VTABLE_elements(interp, candidates))
+        return PMCNULL;
+
+    /* Grab current candidate. */
+    current = VTABLE_get_pmc_keyed_int(interp, candidates, position);
+    if (VTABLE_isa(interp, current, CONST_STRING(interp, "Perl6MultiSub"))) {
+        /* XXX Multi potrebuje nieco specialne... */
+    }
+
+    /* Increment position in candidate list, and we're done. */
+    position++;
+    SETATTR_P6Invocation_position(interp, SELF, position);
+    return current;
 }
 
 pmclass P6Invocation need_ext dynpmc group perl6_group {
@@ -32,47 +51,82 @@ pmclass P6Invocation need_ext dynpmc group perl6_group {
     ATTR PMC *candidate_list;
     ATTR INTVAL position;
 
-    VTABLE init() {
+    VTABLE void init() {
         PMC_data(SELF) = mem_allocate_zeroed_typed(Parrot_P6Invocation_attributes);
         PObj_custom_mark_SET(SELF);
         PObj_active_destroy_SET(SELF);
     }
 
-    VTABLE init_pmc(PMC *list) {
+    VTABLE void init_pmc(PMC *list) {
         SELF.init();
         SETATTR_P6Invocation_candidate_list(interp, SELF, list);
     }
 
-    VTABLE mark() {
+    VTABLE void mark() {
         if (PMC_data(SELF)) {
             PMC *first_candidate, *candidate_list;
             GETATTR_P6Invocation_first_candidate(interp, SELF, first_candidate);
-            GETATTR_P6Invocation_first_candidate(interp, SELF, candidate_list);
+            GETATTR_P6Invocation_candidate_list(interp, SELF, candidate_list);
             if (!PMC_IS_NULL(first_candidate))
-                pobject_lives(interp, (PObj*)first_candidate);
+                Parrot_gc_mark_PObj_alive(interp, (PObj*)first_candidate);
             if (!PMC_IS_NULL(candidate_list))
-                pobject_lives(interp, (PObj*)candidate_list);
+                Parrot_gc_mark_PObj_alive(interp, (PObj*)candidate_list);
         }
     }
 
-    VTABLE destroy() {
+    VTABLE void destroy() {
         mem_sys_free(PMC_data(SELF));
         PMC_data(SELF) = NULL;
     }
-    
-    VTABLE opcode_t *invoke(void *next) {
-        /* In the straightforward case, we know our first candidate right off the
-         * bat; if not, use list. */
-        PMC *first_candidate;
+
+    VTABLE PMC *clone() {
+        PMC *first_candidate, *candidate_list;
+        INTVAL position;
+
+        PMC *copy = pmc_new(interp, SELF->vtable->base_type);
         GETATTR_P6Invocation_first_candidate(interp, SELF, first_candidate);
-        if (PMC_IS_NULL(first_candidate))
-            first_candidate = get_next_candidate(interp, SELF, PMCNULL);
-        return VTABLE_invoke(interp, first_candidate, next);
+        GETATTR_P6Invocation_candidate_list(interp, SELF, candidate_list);
+        GETATTR_P6Invocation_position(interp, SELF, position);
+        SETATTR_P6Invocation_first_candidate(interp, copy, first_candidate);
+        SETATTR_P6Invocation_candidate_list(interp, copy, candidate_list);
+        SETATTR_P6Invocation_position(interp, copy, position);
+        return copy;
     }
 
-    METHOD PMC *get_next_candidate(PMC *args :slurpy)
-    {
-        PMC *next = get_next_candidate(interp, SELF, args);
+    VTABLE INTVAL get_bool() {
+        PMC    *candidates;
+        INTVAL  position;
+    
+        /* Get candidates and position, and check if we have more candidates. */
+        GETATTR_P6Invocation_candidate_list(interp, SELF, candidates);
+        GETATTR_P6Invocation_position(interp, SELF, position);
+        return position < VTABLE_elements(interp, candidates);
+    }
+    
+    VTABLE opcode_t *invoke(void *next) {
+        STRING   *lexname = CONST_STRING(interp, "__CANDIDATE_LIST__");
+        PMC      *lexpad, *first_candidate;
+        opcode_t *addr;
+
+        /* In the straightforward case, we know our first candidate right off the
+         * bat; if not, use list. We also nullify first candidate so we hit the
+         * candidate list next time we're used. */
+        GETATTR_P6Invocation_first_candidate(interp, SELF, first_candidate);
+        if (PMC_IS_NULL(first_candidate))
+            first_candidate = get_next_candidate(interp, SELF);
+        else
+            SETATTR_P6Invocation_first_candidate(interp, SELF, PMCNULL);
+
+        /* Invoke it, then fudge ourself into its lexpad. */
+        addr = VTABLE_invoke(interp, first_candidate, next);
+        lexpad = CONTEXT(interp)->lex_pad;
+        if (VTABLE_exists_keyed_str(interp, lexpad, lexname))
+            VTABLE_set_pmc_keyed_str(interp, lexpad, lexname, SELF);
+        return addr;
+    }
+
+    METHOD PMC *get() {
+        PMC *next = VTABLE_clone(interp, SELF);
         RETURN(PMC *next);
     }
 }

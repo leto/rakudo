@@ -455,7 +455,7 @@ rule trait_auxiliary {
 rule trait_verb {
     [
     | $<sym>=[of|returns] <typename>
-    | $<sym>=[handles] <EXPR>
+    | $<sym>=[handles] <noun>
     ]
     {*}
 }
@@ -572,18 +572,20 @@ token expect_term {
 token post {
     <!afterws>
     [ <.unsp> || \\ ]?
+    <postfix_prefix_meta_operator>?
     [
     | <dotty> {*}                                #= dotty
     | <postcircumfix> {*}                        #= postcircumfix
     ]
 }
 
+token postfix_prefix_meta_operator { '»' | '>>' }
 
 token dotty {
     [
     | '.VAR' {*}                                      #= VAR
     | '.' <.unspacey> <dottyop> {*}                   #= .
-    | ('.' <[+*?^:]>) <.unspacey> <dottyop> {*}       #= .*
+    | ('.' <[+*?^:=]>) <.unspacey> <dottyop> {*}      #= .*
     | '!' <methodop> {*}                              #= !
     ]
 }
@@ -693,6 +695,7 @@ rule package_def {
         {{
             $P0 = match['module_name']
             $P0 = $P0[0]
+            $P0 = $P0['longname']
             $P0 = $P0['name']
             $S0 = $P0.'text'()
             match.'add_type'($S0)
@@ -786,7 +789,7 @@ token constant_declarator {
         .return ($I0)
     }}>
     <!{{
-        # XXX <!{ $�.is_name($<identifier>.Str) }>
+        # XXX <!{ $¢.is_name($<identifier>.Str) }>
         $P0 = match['identifier']
         $S0 = $P0.'text'()
         .tailcall match.'is_type'($S0)
@@ -830,8 +833,8 @@ token circumfix {
 }
 
 token module_name {
-    <name>
-    [
+    <longname>
+    $<role_params>=[
         :dba('generic role')
         <?{{
             ## ($+PKGDECL//'') eq 'role' (more like (@?PKGDECL[0]//'') eq 'role')
@@ -842,6 +845,10 @@ token module_name {
         }}>
         '[' ~ ']' <signature>
     ]?
+}
+
+token longname {
+    <name> <colonpair>*
 }
 
 token name {
@@ -890,7 +897,7 @@ token quote {
     | <.before '"' >   <quote_expression: :qq>
     | <.before '<<' >  <quote_expression: :ww :qq>
     | <.before '<' >   <quote_expression: :w :q>
-    # | <.before '«' > <quote_expression: :ww :qq>  FIXME: unicode
+    | <.before '«' >   <quote_expression: :ww :qq>
     | <.before '/'>    <quote_expression: :regex>
     | [m|rx] <.ws> 
         [ [':P5'|':Perl5'] <.ws> <quote_expression: :regex :P5>
