@@ -1,15 +1,32 @@
 New in 2009-05 release
-+ Implemented Regex type
-+ Fixed non-ASCII identifiers
++ updated docs/ROADMAP
++ basic support for custom operators
++ operators can now be referenced as &infix:<+>
++ meta operator support for custom operators
++ cross-language library loading
++ stack traces now include source file name and line number
++ implemented Regex type
 + .WALK (parent classes in configurable order)
-+ performance improvements
 + .name method on routines
 + refactored enums, thereby fixing many enum related bugs
 + fixed namespace of eval()ed code
++ implemented parallel dispatch (@objects>>.methods)
++ initial support for «...» quotes
++ text files now default to utf8 encoding
 + fixes to Match.perl and Match.chunks
 + implemented 'constant name = $value'
 + documented build dependencies
-+ trigonemtric functions (sin, cos, ...) now available via 'use Num :Trig'
++ grep() accepts general matcher, things like @list.grep(Int) work
++ trigonometric functions (sin, cos, ...) now available via 'use Num :Trig'
++ qx{} quotes now work (except on Windows)
++ hyper-operators on hashes now work (%a >>+<< %b)
++ initial implementation of $foo.@bar
++ refactored wrap and unwrap to work with candidate lists; fixes some bugs
++ refactored/improved callsame and callwith, and added nextsame and nextwith
+  (only work for dispatches of the form $foo.@bar and with wrap so far)
++ partial implementation of .^parents and .^methods
++ can initialize attributes in terms of others
++ many other bug fixes and performance enhancements
 
 New in 2009-04 release (#16, "Bratislava")
 + wrap and unwrap for subroutines

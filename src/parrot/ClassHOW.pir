@@ -31,7 +31,8 @@ Tests role membership.
     .tailcall type.'ACCEPTS'(obj)
   not_p6role:
     $I0 = does obj, type
-    .tailcall 'prefix:?'($I0)
+    .const 'Sub' $P1 = 'prefix:?'
+    .tailcall $P1($I0)
 .end
 
 
@@ -47,7 +48,7 @@ Gets a list of this class' parents.
     .param pmc hierarchical  :named('hierarchical') :optional
     
     .local pmc parrot_class, result_list, parrot_list, it
-    result_list = get_hll_global 'Array'
+    result_list = get_root_global [.RAKUDO_HLL], 'Array'
     result_list = result_list.'new'()
     parrot_class = self.'get_parrotclass'(obj)
     
@@ -107,7 +108,7 @@ XXX Fix bugs with introspecting some built-in classes (List, Str...)
     parrot_class = self.'get_parrotclass'(obj)
 
     # Create array to put results in.
-    result_list = get_hll_global 'Array'
+    result_list = get_root_global [.RAKUDO_HLL], 'Array'
     result_list = result_list.'new'()
 
     # Get methods hash and build list of methods.
@@ -220,7 +221,7 @@ Dispatches to method of the given name on this class or one of its parents.
     goto do_handles_call
 
   handles_proto:
-    $P1 = get_hll_global ['Perl6Object'], '$!P6META'
+    $P1 = get_root_global [.RAKUDO_HLL ; 'Perl6Object'], '$!P6META'
     $P0 = $P1.'get_parrotclass'($P0)
     goto handles_have_pc
   handles_role:
@@ -270,7 +271,8 @@ Dispatches to method of the given name on this class or one of its parents.
 
   autothread_invocant:
     .local pmc values, values_it, res, res_list, type
-    res_list = 'list'()
+    .const 'Sub' $P1 = 'list'
+    res_list = $P1()
     values = obj.'eigenstates'()
     values_it = iter values
   values_it_loop:
@@ -282,7 +284,8 @@ Dispatches to method of the given name on this class or one of its parents.
     goto values_it_loop
   values_it_loop_end:
     type = obj.'!type'()
-    .tailcall '!MAKE_JUNCTION'(type, res_list)
+    .const 'Sub' $P1 = '!MAKE_JUNCTION'
+    .tailcall $P1(type, res_list)
 
   whatever_closure:
     if name == 'WHAT' goto proto_done # XXX And this is why .WHAT needs to become a macro...
@@ -292,7 +295,8 @@ Dispatches to method of the given name on this class or one of its parents.
     obj = obj.'!select'()
   pun_role:
     obj = obj.'!pun'()
-    .tailcall '!dispatch_method'(obj, name, pos_args :flat, name_args :flat :named)
+    .const 'Sub' $P1 = '!dispatch_method'
+    .tailcall $P1(obj, name, pos_args :flat, name_args :flat :named)
 .end
 
 

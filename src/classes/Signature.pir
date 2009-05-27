@@ -89,7 +89,7 @@ the Signature.
     # constraints; otherwise, we find the unique type. Finally, we turn the
     # list of constraints into a junction.
     .local pmc cur_list, cur_list_iter, constraints, type, test_item
-    constraints = new 'ResizablePMCArray'
+    constraints = root_new ['parrot';'ResizablePMCArray']
     type = null
     cur_list = attr["type"]
     if null cur_list goto cur_list_loop_end
@@ -123,7 +123,7 @@ the Signature.
 
     # Set parametric type, if any.
     .local pmc all_types
-    all_types = new 'ResizablePMCArray'
+    all_types = root_new ['parrot';'ResizablePMCArray']
     unless null type goto have_type
     unless null role_type goto simple_role_type
     type = getattribute self, '$!default_type'
@@ -145,7 +145,7 @@ the Signature.
     constraints = 'infix:&'(constraints :flat)
     goto set_constraints
   no_constraints:
-    constraints = new 'Undef'
+    constraints = root_new ['parrot';'Undef']
     attr["type"] = type
   set_constraints:
     attr["cons_type"] = constraints
@@ -192,8 +192,7 @@ Ensures that if there is no explicit invocant, we add one.
     .return ()
 
   add_implicit_self:
-    $P0 = get_root_namespace ['parrot';'Hash']
-    $P0 = new $P0
+    $P0 = root_new ['parrot';'Hash']
     $P0['name'] = 'self'
     $P0['invocant'] = 1
     $P0['multi_invocant'] = 1
@@ -232,7 +231,7 @@ Get the array of parameter describing hashes.
 .sub 'params' :method
     $P0 = getattribute self, "@!params"
     unless null $P0 goto done
-    $P0 = new 'ResizablePMCArray'
+    $P0 = root_new ['parrot';'ResizablePMCArray']
     setattribute self, "@!params", $P0
   done:
     .return ($P0)
@@ -246,7 +245,7 @@ Gets a perl representation of the signature.
 
 .sub 'perl' :method
     .local pmc s
-    s = new 'Str'
+    s = new ['Str']
     concat s, ':('
 
     # Output parameters.
@@ -367,14 +366,17 @@ lexicals as needed and performing type checks.
     callerlex = $P0['lexpad';1]
     getprop callersig, '$!signature', callersub
     if null callersig goto end
-    .local pmc it
-    $P0 = callersig.'params'()
-    if null $P0 goto end
-    it = iter $P0
+    .local pmc params
+    params = getattribute callersig, "@!params"
+    if null params goto end
+    .local int cur_param, count
+    count = elements params
+    cur_param = -1
   param_loop:
-    unless it goto param_done
+    inc cur_param
+    unless cur_param < count goto param_done
     .local pmc param
-    param = shift it
+    param = params[cur_param]
     .local string name, sigil
     name = param['name']
     if name == 'self' goto param_loop
@@ -414,7 +416,7 @@ lexicals as needed and performing type checks.
     if $S0 == 'rw' goto param_readtype_done
     if $S0 == 'copy' goto param_readtype_copy
     ne_addr orig, var, param_readtype_var
-    var = new 'ObjectRef', var
+    var = root_new ['parrot';'ObjectRef'], var
   param_readtype_var:
     $P0 = get_hll_global ['Bool'], 'True'
     setprop var, 'readonly', $P0
@@ -425,12 +427,12 @@ lexicals as needed and performing type checks.
     var = clone var
     goto param_readtype_done
   param_readtype_copy_array:
-    $P0 = new 'Perl6Array'
+    $P0 = new ['Perl6Array']
     'infix:='($P0, var)
     var = $P0
     goto param_readtype_done
   param_readtype_copy_hash:
-    $P0 = new 'Perl6Hash'
+    $P0 = new ['Perl6Hash']
     'infix:='($P0, var)
     var = $P0
   param_readtype_done:
@@ -455,7 +457,7 @@ lexicals as needed and performing type checks.
   not_junctional:
     .local string errmsg
     errmsg = 'Parameter type check failed; expected something matching '
-    $S0 = type.'perl'()
+    $S0 = type.'WHAT'()
     concat errmsg, $S0
     concat errmsg, ' but got something of type '
     $S0 = orig.'WHAT'()

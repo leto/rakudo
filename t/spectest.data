@@ -77,6 +77,7 @@ S02-literals/quoting-unicode.t
 S02-literals/radix.t
 S02-literals/string-interpolation.t
 S02-literals/sub-calls.t
+S02-literals/subscript.t
 S02-literals/types.t
 S02-literals/underscores.t
 S02-magicals/config.t
@@ -134,6 +135,8 @@ S03-operators/scalar-assign.t
 S03-operators/short-circuit.t
 S03-operators/smartmatch.t
 S03-operators/spaceship-and-containers.t
+S03-operators/spaceship.t
+S03-operators/subscript-vs-lt.t
 S03-operators/ternary.t
 S03-operators/true.t
 S03-operators/value_equivalence.t
@@ -225,6 +228,8 @@ S06-multi/lexical-multis.t
 S06-multi/proto.t
 S06-multi/syntax.t
 S06-multi/type-based.t
+S06-operator-overloading/imported-subs.t
+S06-operator-overloading/sub.t
 S06-other/main.t
 S06-other/main-eval.t
 S06-routine-modifiers/scoped-named-subs.t
@@ -306,6 +311,8 @@ S12-methods/what.t
 S12-subset/multi-dispatch.t
 S12-subset/subtypes.t
 S13-type-casting/methods.t
+S13-overloading/metaoperators.t
+S13-overloading/operators.t
 S14-roles/attributes.t
 S14-roles/basic.t
 S14-roles/composition.t
