@@ -121,6 +121,7 @@ S03-operators/cross-metaop.t
 S03-operators/equality.t
 S03-operators/hyper.t
 S03-operators/increment.t
+S03-operators/inplace.t
 S03-operators/misc.t
 S03-operators/not.t
 S03-operators/numeric-context.t
@@ -285,7 +286,9 @@ S12-class/instantiate.t
 S12-class/namespaced.t
 S12-class/parent_attributes.t
 S12-construction/autopairs.t
+S12-construction/BUILD.t
 S12-construction/construction.t
+S12-construction/named-params-in-BUILD.t
 S12-construction/new.t
 S12-enums/anonymous.t
 S12-enums/as-role.t
@@ -293,12 +296,16 @@ S12-enums/basic.t
 S12-enums/thorough.t
 S12-introspection/can.t
 S12-introspection/meta-class.t
+S12-introspection/methods.t
+S12-introspection/parents.t
 S12-introspection/walk.t
 S12-methods/calling_sets.t
 S12-methods/calling_syntax.t
 S12-methods/chaining.t
 S12-methods/class-and-instance.t
 S12-methods/default-trait.t
+S12-methods/defer-call.t
+S12-methods/defer-next.t
 S12-methods/indirect_notation.t
 S12-methods/instance.t
 S12-methods/multi.t
@@ -404,9 +411,11 @@ S32-str/samecase.t                                         # icu
 S32-str/split-simple.t
 S32-str/sprintf.t
 S32-str/substr.t
+S32-temporal/Temporal.t
 S32-str/trim.t
 S32-str/ucfirst.t
 S32-str/uc.t                                               # icu
 S32-str/unpack.t
 S32-str/words.t                                            # icu
+S32-trig/e.t
 S32-trig/trig.t

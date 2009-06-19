@@ -415,10 +415,15 @@ method use_statement($/) {
         }
 
         ##  Handle versioning
+        my $ver;
         if $<colonpair> {
-            my $ver := PAST::Op.new( :pasttype('call'), :name('hash') );
+            $ver := PAST::Op.new( :pasttype('call'), :name('hash') );
             for $<colonpair> {
-                $ver.push( $_.ast );
+                my $pair := $_.ast;
+                $ver.push( $pair );
+                if $pair[0].value() eq 'from' {
+                    $/.add_type($name);
+                }
             }
             $ver.named('ver');
             $use_call.push($ver);
@@ -430,12 +435,14 @@ method use_statement($/) {
         ##  XXX Need to handle tags here too, and creating needed lexical
         ##  slots.
         our @?NS;
+        my %ver_hash;
+        for @($ver) { if $_ { %ver_hash{$_[0].value()} := $_[1].value() } }
         if $tags {
             my %tag_hash;
             for @($tags) { %tag_hash{$_[0].value()} := 1 }
-            use($name, :import_to(@?NS ?? @?NS[0] !! ''), :tags(%tag_hash));
+            use($name, :import_to(@?NS ?? @?NS[0] !! ''), :ver(%ver_hash), :tags(%tag_hash));
         } else {
-            use($name, :import_to(@?NS ?? @?NS[0] !! ''));
+            use($name, :import_to(@?NS ?? @?NS[0] !! ''), :ver(%ver_hash),);
         }
     }
     $past := PAST::Stmts.new( :node($/) );
@@ -751,10 +758,13 @@ method routine_declarator($/, $key) {
     else {
         $past[1].push( PAST::Op.new( :name('list') ) );
     }
-    ##  Add a call to !SIGNATURE_BIND to fixup params and do typechecks.
+    ##  Add a call to !SIGNATURE_BIND to fixup params and do typechecks, and
+    ##  a return to make sure we type-check any implicitly return values for
+    ##  routines with return type constraints.
     $past[0].push(
         PAST::Op.new( :pasttype('call'), :name('!SIGNATURE_BIND') )
     );
+    add_return_type_check_if_needed($past);
     ##  If we have a proto in scope of this name, then we need to make this a
     ##  multi.
     if $past.name() ne "" {
@@ -802,6 +812,9 @@ method routine_def($/) {
             my $trait := $_.ast;
             if substr($trait[0], 0, 11) eq 'trait_verb:' {
                 $trait.name('!sub_trait_verb');
+                if $trait[0] eq 'trait_verb:returns' || $trait[0] eq 'trait_verb:of' {
+                    $block<has_return_constraint> := 1;
+                }
             }
             else {
                 $trait.name('!sub_trait');
@@ -832,6 +845,17 @@ method method_def($/) {
         )
     );
     $block[0].unshift(PAST::Var.new( :name('__CANDIDATE_LIST__'), :scope('lexical'), :isdecl(1) ));
+
+    # Add *%_ parameter if there's no other named slurpy.
+    my $need_slurpy_hash := 1;
+    for @($block[0]) {
+        if $_.isa(PAST::Var) && $_.scope() eq 'parameter' && $_.named() && $_.slurpy() {
+            $need_slurpy_hash := 0;
+        }
+    }
+    if $need_slurpy_hash {
+        $block[0].push(PAST::Var.new( :name('%_'), :scope('parameter'), :named(1), :slurpy(1) ));
+    }
 
     $block.control(return_handler_past());
     block_signature($block);
@@ -911,7 +935,7 @@ method trait_verb($/) {
     my $sym := ~$<sym>;
     my $value;
     if $sym eq 'handles' { $value := $<noun>.ast; }
-    else { $value := $<typename>.ast; }
+    else { $value := $<fulltypename>.ast; }
     make PAST::Op.new( :name('infix:,'), 'trait_verb:' ~ $sym, $value );
 }
 
@@ -1012,13 +1036,7 @@ method signature($/, $key) {
 
         ##  handle return type written with --> T
         if $<fulltypename> {
-            $loadinit.push(PAST::Op.new(
-                :pasttype('call'),
-                :name('!sub_trait_verb'),
-                PAST::Var.new( :name('block'), :scope('register') ),
-                'trait_verb:returns',
-                $<fulltypename>[0].ast
-            ));
+            set_return_type($block, $<fulltypename>);
         }
 
         ##  restore block stack and return signature ast
@@ -1208,7 +1226,7 @@ method expect_term($/, $key) {
                     $past.unshift($meth);
             }
             elsif $past<invocant_holder> {
-                $past<invocant_holder>.unshift($term);
+                $past<invocant_holder>.unshift(deref_invocant($term));
             }
             else {
                 $past.unshift($term);
@@ -1295,12 +1313,7 @@ method dotty($/, $key) {
 
     # We actually need to send dispatches for named method calls (other than .*)
     # through the.dispatcher.
-    if $key ne '.*' && $past.pasttype() eq 'callmethod' && $past.name() ne "" {
-        $past.unshift($past.name());
-        $past.name('!dispatch_method');
-        $past.pasttype('call');
-    }
-    elsif $<dottyop><methodop><variable> {
+    if $<dottyop><methodop><variable> {
         $past.name('!dispatch_method_indirect');
         $past.pasttype('call');
     }
@@ -1345,8 +1358,7 @@ method postcircumfix($/, $key) {
     if $key eq '[ ]' {
         $past := PAST::Op.new( :name('postcircumfix:[ ]'), :node($/) );
         if $<semilist><EXPR> {
-            my $slice := $<semilist>.ast;
-            $past.push( PAST::Block.new( $slice, :blocktype('declaration') ) );
+            $past.push( $<semilist>.ast );
         }
     }
     elsif $key eq '( )' {
@@ -1382,12 +1394,12 @@ method noun($/, $key) {
     elsif $key eq 'dotty' {
         # Call on $_.
         $past := $/{$key}.ast;
-        $past<invocant_holder>.unshift(PAST::Var.new(
+        $past<invocant_holder>.unshift(deref_invocant(PAST::Var.new(
             :name('$_'),
             :scope('lexical'),
             :viviself('Failure'),
             :node($/)
-        ));
+        )));
     }
     else {
         $past := $/{$key}.ast;
@@ -1852,13 +1864,8 @@ method scoped($/) {
             }
         }
         elsif $past.isa(PAST::Block) && $<fulltypename> {
-            $past.loadinit().push(PAST::Op.new(
-                :pasttype('call'),
-                :name('!sub_trait_verb'),
-                PAST::Var.new( :name('block'), :scope('register') ),
-                'trait_verb:returns',
-                $<fulltypename>[0].ast
-            ));
+            set_return_type($past, $<fulltypename>);
+            add_return_type_check_if_needed($past);
         }
     }
     make $past;
@@ -2017,28 +2024,37 @@ method variable($/, $key) {
             }
         }
 
-        # The ! twigil always implies attribute scope.
+        # The ! twigil always implies attribute scope and needs self.
         if $twigil eq '!' {
             $var.scope('attribute');
-        }
-
-        # ! and . twigils may need 'self' for attribute lookup ...
-        if $twigil eq '!' || $twigil eq '.' {
             $var.unshift( PAST::Var.new( :name('self'), :scope('lexical') ) );
         }
 
-        # ...but return . twigil as a method call, saving the
-        # PAST::Var node in $var<vardecl> where it can be easily
-        # retrieved by <variable_declarator> if we're called from there.
-        if $twigil eq '.' {
-            my $vardecl := $var;
-            $vardecl.name( $sigil ~ '!' ~ $name );
-            $var := PAST::Op.new( :node($/), :pasttype('callmethod'),
-                :name($name),
-                PAST::Var.new( :name('self'), :scope('lexical') )
-            );
-            $var<vardecl> := $vardecl;
-        }
+    }
+    elsif $key eq 'methcall' {
+        my $name := ~$<longname>;
+        my $sigil := ~$<sigil>;
+        if $sigil eq '&' { $sigil := ''; }
+
+        # Normally $.foo is a method call, so we return a PAST::Op node for it.
+        $var := $<postcircumfix> ?? $<postcircumfix>[0].ast !! PAST::Op.new();
+        $var.pasttype('callmethod');
+        $var.name($name);
+        $var.unshift( PAST::Var.new( :name('self'), :scope('lexical') ) );
+        $var.node($/);
+
+        # Sometimes $.foo is an attribute declaration, so we create a
+        # PAST::Var node in $var<vardecl> where it can be retrieved
+        # by <variable_declarator>.  (Eventually we'll be able to use
+        # $*IN_DECL to decide which to return.)
+        my $vardecl := PAST::Var.new( 
+                           :name($sigil ~ '!' ~ $name),
+                           :scope('attribute'),
+                           :node($/),
+                           PAST::Var.new( :name('self'), :scope('lexical') ) );
+        $vardecl<sigil> := ~$<sigil>;
+        $vardecl<twigil> := '.';
+        $var<vardecl> := $vardecl;
     }
     elsif $key eq 'special_variable' {
         $var := $<special_variable>.ast;
@@ -2085,7 +2101,7 @@ method circumfix($/, $key) {
     if $key eq '( )' {
         $past := $<statementlist><statement>
                      ?? $<statementlist>.ast
-                     !! PAST::Op.new(:name('list'));
+                     !! PAST::Op.new(:pirop('new Ps'), 'Nil');
     }
     if $key eq '[ ]' {
         $past := PAST::Op.new(:name('circumfix:[ ]'), :node($/) );
@@ -2195,7 +2211,7 @@ method fulltypename($/) {
             :pasttype('call'),
             :name('postcircumfix:[ ]'),
             $past,
-            PAST::Block.new( $<fulltypename>[0].ast, :blocktype('declaration') )
+            $<fulltypename>[0].ast
         );
     }
     make $past;
@@ -2554,9 +2570,7 @@ method EXPR($/, $key) {
         }
 
         # Change call node to a callmethod.
-        $call.pasttype('call');
-        $call.unshift($call.name());
-        $call.name('!dispatch_method');
+        $call.pasttype('callmethod');
 
         # We only want to evaluate invocant once; stash it in a register.
         $call.unshift(PAST::Op.new(
@@ -3022,7 +3036,7 @@ sub transform_to_multi($past) {
 sub process_smartmatch($lhs, $rhs, $rhs_pt) {
     if $rhs_pt<noun><dotty> {
         # method truth
-        $rhs<invocant_holder>[0] := $lhs;
+        $rhs<invocant_holder>[0] := deref_invocant($lhs);
         if $rhs_pt<noun><dotty><dottyop><postcircumfix> {
             # array/hash slice truth
             $rhs := PAST::Op.new( :pasttype('call'), :name('all'), $rhs);
@@ -3182,6 +3196,41 @@ sub make_attr_init_closure($init_value) {
         )
     );
 }
+
+
+sub deref_invocant($inv) {
+    PAST::Op.new( :inline('    %r = descalarref %0'), $inv )
+}
+
+
+sub set_return_type($block, $type_parse_tree) {
+    if +$type_parse_tree > 1 {
+        $type_parse_tree[0].panic("Multiple prefix constraints not yet supported");
+    }
+    if $block<has_return_constraint> {
+        $type_parse_tree[0].panic("Can not apply two sets of return types to one routine");
+    }
+    $block.loadinit().push(PAST::Op.new(
+        :pasttype('call'),
+        :name('!sub_trait_verb'),
+        PAST::Var.new( :name('block'), :scope('register') ),
+        'trait_verb:returns',
+        $type_parse_tree[0].ast
+    ));
+    $block<has_return_constraint> := 1;
+}
+
+
+sub add_return_type_check_if_needed($block) {
+    if $block<has_return_constraint> {
+        $block[1] := PAST::Op.new(
+            :pasttype('call'),
+            :name('return'),
+            $block[1]
+        );
+    }
+}
+
 
 # Local Variables:
 #   mode: cperl

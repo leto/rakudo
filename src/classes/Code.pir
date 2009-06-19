@@ -133,6 +133,14 @@ Just calls this block with the supplied parameters.
     .tailcall self(pos_args :flat, named_args :flat :named)
 .end
 
+=item name
+
+=cut
+
+.sub 'name' :method
+    $S0 = self
+    .return ($S0)
+.end
 
 =item perl()
 
@@ -152,7 +160,7 @@ Gets the signature for the block, or returns Failure if it lacks one.
 =cut
 
 .sub 'signature' :method
-    $P0 = '!DEREF'(self)
+    $P0 = descalarref self
     $P0 = getprop '$!signature', $P0
     if null $P0 goto no_sig
     .return ($P0)

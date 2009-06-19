@@ -39,7 +39,7 @@ itself can be found in src/builtins/control.pir.
     .local pmc compiler
     compiler = compreg lang
     # XXX FIXME:  We should allow the compiler to choose default encoding/transcode
-    .tailcall compiler.'evalfiles'(filename, 'encoding'=>'utf8', 'transcode'=>'ascii')
+    .tailcall compiler.'evalfiles'(filename, 'encoding'=>'utf8', 'transcode'=>'ascii iso-8859-1')
 
   lang_parrot:
     ##  load_bytecode currently doesn't accept non-ascii filenames (TT #65)
@@ -110,7 +110,7 @@ itself can be found in src/builtins/control.pir.
     goto inc_loop
   inc_end:
     $S0 = concat "Can't find ", basename
-    concat $S0, ' in @INC'
+    concat $S0, ' in @*INC'
     'die'($S0)
     .return (0)
 
@@ -150,18 +150,16 @@ itself can be found in src/builtins/control.pir.
     # This HLL stuff *should* be integrated with the rest... I spent an hour on it and failed.
     ver = options['ver']
     if null ver goto no_hll
-    $P0 = ver['lang']
+    $P0 = ver['from']
     if null $P0 goto no_hll
     lang = $P0
-    .local pmc compiler, request, library, imports, callerns
+    .local pmc name, compiler, library, imports, callerns, foreignlibns
     $P0 = getinterp
     callerns = $P0['namespace';1]
     'load-language'(lang)
     compiler = compreg lang
-    request = root_new ['parrot';'Hash']
-    $P0 = compiler_obj.'parse_name'(module)
-    request['name'] = $P0
-    library = compiler.'fetch-library'(request)
+    name = compiler_obj.'parse_name'(module)
+    library = compiler.'load_library'(name)
     imports = library['symbols']
     imports = imports['DEFAULT']
     .local pmc ns_iter, item
@@ -173,6 +171,11 @@ itself can be found in src/builtins/control.pir.
     callerns[$S0] = $P0
     goto import_loop
   import_loop_end:
+    foreignlibns = library['namespace']
+    if null foreignlibns goto no_foreign_ns
+    $S0 = pop name
+    set_hll_global name, $S0, foreignlibns
+  no_foreign_ns:
     .return (library)
   no_hll:
     # Require module.

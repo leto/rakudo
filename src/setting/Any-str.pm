@@ -1,4 +1,12 @@
 class Any is also {
+    our Int multi method bytes() is export {
+        Q:PIR {
+            $S0 = self
+            $I0 = bytelength $S0
+            %r = box $I0
+        }
+    }
+
     our Str multi method capitalize() is export {
         self.lc.subst(/\w+/, { .ucfirst }, :global)
     }
@@ -31,7 +39,7 @@ class Any is also {
         }
     }
 
-    our Int multi method p5chomp() is export(:P5) {
+    our Int multi method p5chomp() is export {
         my $num = 0;
 
         for @.list -> $str is rw {
@@ -45,7 +53,7 @@ class Any is also {
     }
 
     # TODO: Return type should be a Char once that is supported.
-    our Str multi method p5chop() is export(:P5) {
+    our Str multi method p5chop() is export {
         my $char = '';
 
         for @.list -> $str is rw {

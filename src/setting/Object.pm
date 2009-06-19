@@ -51,15 +51,18 @@ class Object is also {
                 }
                 build_descendent(self.WHAT);
             } else {
-                # Canonical, the default (just whatever the meta-class says).
+                # Canonical, the default (just whatever the meta-class says) with us
+                # on the start.
                 @classes = self.^parents();
+                @classes.unshift(self.WHAT);
             }
         }
+
         # Now we have classes, build method list.
         my @methods;
         for @classes -> $class {
             if $include.ACCEPTS($class) && !$omit.ACCEPTS($class) {
-                for $class.^methods() -> $method {
+                for $class.^methods(:local) -> $method {
                     my $check_name = $method.?name;
                     if $check_name.defined && $check_name eq $name {
                         @methods.push($method);

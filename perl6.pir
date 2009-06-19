@@ -109,7 +109,7 @@ USAGE
     $P0 .= $S0
   _handler:
     pop_eh
-    $P0 .= ".\n\nCopyright 2006-2008, The Perl Foundation.\n"
+    $P0 .= ".\n\nCopyright 2006-2009, The Perl Foundation.\n"
     setattribute perl6, '$version', $P0
 
     $P0 = box .RAKUDO_HLL
@@ -354,7 +354,7 @@ to the Perl 6 compiler.
   not_harness:
 
     $P0 = compreg 'perl6'
-    $P1 = $P0.'command_line'(args_str, 'encoding'=>'utf8', 'transcode'=>'ascii')
+    $P1 = $P0.'command_line'(args_str, 'encoding'=>'utf8', 'transcode'=>'ascii iso-8859-1')
 
     .include 'iterator.pasm'
     .local pmc iter
@@ -414,10 +414,10 @@ to the Perl 6 compiler.
 .end
 
 
-.sub 'fetch-library' :method
-    .param pmc request
-    .local pmc name, retval, library, inc_hash
-    name = request['name']
+.sub 'load_library' :method
+    .param pmc name
+    .param pmc extra :named :slurpy
+    .local pmc retval, library, inc_hash, symbols
     $S0 = join '::', name
     retval = 'require'($S0, 'module'=>1)
     if null retval goto fail
@@ -426,10 +426,17 @@ to the Perl 6 compiler.
     inc_hash = get_hll_global '%INC'
     $S0 = inc_hash[$S0]
     library['filename'] = $S0
-    $P0 = get_hll_global name, 'EXPORT'
-    library['symbols'] = $P0
     $P0 = get_hll_namespace name
     library['namespace'] = $P0
+    push name, 'EXPORT'
+    symbols = get_hll_namespace name
+    unless null symbols goto have_symbols
+    symbols = new 'Hash'
+    $P0 = new 'ResizablePMCArray'
+    symbols['ALL'] = $P0
+    symbols['DEFAULT'] = $P0
+  have_symbols:
+    library['symbols'] = symbols
     .return (library)
   fail:
     .return (retval)
@@ -445,37 +452,18 @@ Currently this does the equivalent of EXPORTALL on the core namespaces.
 =cut
 
 .namespace []
-
 .sub '' :anon :load :init
-    .local pmc perl6, nslist, nsiter
-    perl6 = get_hll_global ['Perl6'], 'Compiler'
-    nslist = split ' ', 'Any'
-    nsiter = iter nslist
-  ns_loop:
-    unless nsiter goto ns_done
-    $S0 = shift nsiter
-    $S0 .= '::EXPORT::ALL'
-    $P0 = perl6.'parse_name'($S0)
-    .local pmc ns, symiter
-    ns = get_hll_namespace $P0
-    if null ns goto ns_loop
-    symiter = iter ns
-  sym_loop:
-    unless symiter goto sym_done
-    $S0 = shift symiter
-    $P0 = ns[$S0]
-    set_global $S0, $P0
-    goto sym_loop
-  sym_done:
-    goto ns_loop
-  ns_done:
+    $P0 = get_global 'SETTING_INIT'
+    if null $P0 goto done
+    $P0()
+  done:
 .end
 
 ##  This goes at the bottom because the methods end up in the 'parrot'
 ##  HLL namespace.
 .HLL 'parrot'
 .include 'src/parrot/ClassHOW.pir'
-.include 'src/parrot/Role.pir'
+.include 'src/parrot/P6role.pir'
 .include 'src/parrot/Protoobject.pir'
 .include 'src/parrot/misc.pir'
 .include 'src/parrot/state.pir'

@@ -35,7 +35,7 @@ like this.
 
     # Make a clone.
     .local pmc result
-    self = '!DEREF'(self)
+    self = deobjectref self
     result = clone self
 
     # Set any new attributes.
@@ -60,6 +60,22 @@ like this.
 
     .return (result)
 .end
+
+.macro fixup_cloned_sub(orig, copy)
+    .local pmc tmp, tmp2
+    .local string tmp_str
+    tmp = getprop '$!signature', .orig
+    if null tmp goto sub_fixup_done
+    setprop .copy, '$!signature', tmp
+    tmp_str = typeof .orig
+    if tmp_str == "Sub" goto sub_fixup_done
+    tmp = getattribute .orig, ['Sub'], 'proxy'
+    tmp = getprop '$!real_self', tmp
+    if null tmp goto sub_fixup_done
+    tmp2 = getattribute .copy, ['Sub'], 'proxy'
+    setprop tmp2, '$!real_self', tmp
+  sub_fixup_done:
+.endm
 
 
 =item defined()
@@ -273,12 +289,12 @@ the object's type and address.
 
 
 .sub 'BUILD' :method
-    .param pmc candidate
     .param pmc attrinit        :slurpy :named
 
-    .local pmc p6meta, parrotclass, attributes, it
+    .local pmc p6meta, parentproto, parrotclass, attributes, it
     p6meta = get_hll_global ['Perl6Object'], '$!P6META'
-    parrotclass = p6meta.'get_parrotclass'(self)
+    parentproto = find_caller_lex '$CLASS'
+    parrotclass = p6meta.'get_parrotclass'(parentproto)
     attributes = inspect parrotclass, 'attributes'
     it = iter attributes
   attrinit_loop:
@@ -286,7 +302,7 @@ the object's type and address.
     .local string attrname, keyname
     .local pmc attr, attrhash
     attrname = shift it
-    attr = getattribute candidate, parrotclass, attrname
+    attr = getattribute self, parrotclass, attrname
     attrhash = attributes[attrname]
     $I0 = index attrname, '!'
     if $I0 < 0 goto attrinit_loop
@@ -296,12 +312,12 @@ the object's type and address.
     unless null $P0 goto attrinit_assign
     $P0 = attrhash['init_value']
     if null $P0 goto attrinit_loop
-    $P0 = $P0(candidate, attr)
+    $P0 = $P0(self, attr)
   attrinit_assign:
     'infix:='(attr, $P0)
     goto attrinit_loop
   attrinit_done:
-    .return (candidate)
+    .return (self)
 .end
 
 
@@ -330,6 +346,7 @@ the object's type and address.
     parentproto = $P0.'WHAT'()
     $I0 = can parentproto, 'BUILD'
     unless $I0 goto parents_loop
+    .lex '$CLASS', parentproto
     # Look through posargs for a corresponding protoobject
     # with a WHENCE property.  If found, that WHENCE property
     # is used as the arguments to the parent class BUILD.
@@ -342,10 +359,12 @@ the object's type and address.
     ne_addr $P0, $P1, posargs_loop
     $P0 = argproto.'WHENCE'()
     if null $P0 goto posargs_done
-    parentproto.'BUILD'(candidate, $P0 :flat :named)
+    $P1 = find_method parentproto, 'BUILD'
+    $P1(candidate, $P0 :flat :named)
     goto parents_loop
   posargs_done:
-    parentproto.'BUILD'(candidate, attrinit :flat :named)
+    $P1 = find_method parentproto, 'BUILD'
+    $P1(candidate, attrinit :flat :named)
     goto parents_loop
   parents_done:
     .return (candidate)
@@ -525,6 +544,43 @@ until we get roles).
 .end
 
 
+=item !STORE(source)
+
+Store C<source> into C<self>, performing type checks
+as needed.  (This method is listed with the other public
+methods simply because I expect it may switch to public
+in the future.)
+
+=cut
+
+.sub '!STORE' :method :subid('Object::!STORE')
+    .param pmc source
+    source = '!CALLMETHOD'('Scalar', source)
+    $I0 = defined source
+    unless $I0 goto do_store
+    .local pmc type
+    getprop type, 'type', self
+    if null type goto do_store
+    $I0 = isa type, 'NameSpace'
+    if $I0 goto do_store
+    $I0 = type.'ACCEPTS'(source)
+    unless $I0 goto err_type
+  do_store:
+    source = deobjectref source
+    eq_addr self, source, store_done
+    copy self, source
+    .fixup_cloned_sub(source, self)
+  store_done:
+    .return (self)
+
+  err_type:
+    $S0 = type.'perl'()
+    $S1 = source.'WHAT'()
+    'die'("Type mismatch in assignment; expected something matching type ", $S0, " but got something of type ", $S1)
+    .return (self)
+.end
+
+
 =item WHENCE()
 
 Return the invocant's auto-vivification closure.
@@ -596,6 +652,30 @@ Create a clone of self, also cloning the attributes given by attrlist.
   attr_end:
     .return (result)
 .end
+
+
+=item !rebox
+
+If we end up with an object that isn't a subclass of Perl6Object
+(e.g., a parrot Integer, Float, or Str), the C<!rebox> method will
+adjust it.
+
+=cut
+
+.namespace ['Perl6Object']
+.sub '!rebox' :method
+    $I0 = isa self, ['Perl6Object']
+    if $I0 goto done
+    .local pmc p6meta
+    p6meta = get_hll_global ['Perl6Object'], '$!P6META'
+    $P0 = self.'WHAT'()
+    $P0 = p6meta.'get_parrotclass'($P0)
+    $P0 = new $P0
+    assign $P0, self
+    copy self, $P0
+  done:
+.end
+    
 
 =item !.?
 

@@ -28,56 +28,67 @@ src/builtins/op.pir - Perl 6 builtin operators
 
 
 ## autoincrement
-.sub 'postfix:++' :multi(_)
+.sub 'prefix:++' :multi(_) :subid('!prefix:++')
+    .param pmc a
+    $I0 = defined a
+    unless $I0 goto inc_undef
+    $P1 = a.'succ'()
+    .tailcall 'infix:='(a, $P1)
+  inc_undef:
+    .tailcall 'infix:='(a, 1)
+.end
+
+.sub 'postfix:++' :multi(_) :subid('!postfix:++')
     .param pmc a
     $P0 = a.'clone'()
-    $I0 = defined a
-    if $I0 goto have_a
-    'infix:='(a, 0)
-  have_a:
-    $P1 = a.'clone'()
-    inc $P1
-    'infix:='(a, $P1)
+    .const 'Sub' $P1 = '!prefix:++'
+    $P1(a)
     .return ($P0)
+.end
+
+.sub 'prefix:--' :multi(_) :subid('!prefix:--')
+    .param pmc a
+    $I0 = defined a
+    unless $I0 goto dec_undef
+    $P1 = a.'pred'()
+    .tailcall 'infix:='(a, $P1)
+  dec_undef:
+    .tailcall 'infix:='(a, -1)
 .end
 
 .sub 'postfix:--' :multi(_)
     .param pmc a
     $P0 = a.'clone'()
-    $I0 = defined a
-    if $I0 goto have_a
-    'infix:='(a, 0)
-  have_a:
-    $P1 = a.'clone'()
-    dec $P1
-    'infix:='(a, $P1)
+    .const 'Sub' $P1 = '!prefix:--'
+    $P1(a)
     .return ($P0)
 .end
 
-
-.sub 'prefix:++' :multi(_)
+.sub 'prefix:++' :multi(Integer) :subid('!prefix:++Int')
     .param pmc a
-    $I0 = defined a
-    if $I0 goto have_a
-    'infix:='(a, 0)
-  have_a:
-    $P0 = a.'clone'()
-    inc $P0
-    'infix:='(a, $P0)
+    unless a < 2147483647 goto fallback
+    $P0 = getprop 'readonly', a
+    unless null $P0 goto fallback
+    $P0 = getprop 'type', a
+    if null $P0 goto fast_inc
+    $P1 = get_hll_global 'Int'
+    $I0 = issame $P0, $P1
+    unless $I0 goto fallback
+  fast_inc:
+    inc a
     .return (a)
+  fallback:
+    .const 'Sub' fb = '!prefix:++'
+    .tailcall fb(a)
 .end
 
-
-.sub 'prefix:--' :multi(_)
+.sub 'postfix:++' :multi(Integer)
     .param pmc a
-    $I0 = defined a
-    if $I0 goto have_a
-    'infix:='(a, 0)
-  have_a:
-    $P0 = a.'clone'()
-    dec $P0
-    'infix:='(a, $P0)
-    .return (a)
+    $P0 = deobjectref a
+    $P0 = clone $P0
+    .const 'Sub' $P1 = '!prefix:++Int'
+    $P1(a)
+    .return ($P0)
 .end
 
 
@@ -402,6 +413,7 @@ src/builtins/op.pir - Perl 6 builtin operators
 
     # Get the class of the variable we're adding roles to.
     .local pmc p6meta, parrot_class
+    var.'!rebox'()
     parrot_class = class var
 
     # Derive a new class that does the role(s) specified.
@@ -410,9 +422,9 @@ src/builtins/op.pir - Perl 6 builtin operators
     addparent derived, parrot_class
     $I0 = isa role, ['Perl6Role']
     if $I0 goto one_role_select
-    $P0 = get_root_namespace ['parrot';'Role']
-    $P0 = get_class $P0
-    $I0 = isa role, $P0
+    #$P0 = get_root_namespace ['parrot';'Role']
+    #$P0 = get_class $P0
+    $I0 = isa role, 'P6role'
     if $I0 goto one_role
     $I0 = isa role, ['List']
     if $I0 goto many_roles
@@ -459,7 +471,9 @@ src/builtins/op.pir - Perl 6 builtin operators
     rebless_subclass var, derived
 
     # We need to set any initial attribute values up.
-    new_proto.'BUILD'(var)
+    .lex '$CLASS', new_proto
+    $P0 = find_method new_proto, 'BUILD'
+    $P0(var)
 
     # If we were given something to initialize with, do so.
     unless have_init_value goto no_init
@@ -596,7 +610,7 @@ Generates meta-ops for user defined operators.
     $P0 = '!generate_meta_op_sub'('!generate_meta_op_helper_reverse', full_name)
     set_hll_global reverse, $P0
     $P0 = '!FAIL'()
-    $P0 = '!generate_meta_op_sub'('!generate_meta_op_helper_simple', '!CROSSMETAOP', name, $P0, 0)
+    $P0 = '!generate_meta_op_sub'('!generate_meta_op_helper_cross', name)
     set_hll_global cross, $P0
     $P0 = '!generate_meta_op_sub'('!generate_meta_op_helper_hyper', '!HYPEROP', name, 0, 0)
     set_hll_global hyper1, $P0
@@ -639,6 +653,11 @@ Generates meta-ops for user defined operators.
     .param pmc args :slurpy
     $P0 = find_lex '$delegate_to'
     .tailcall '!REDUCEMETAOP'($P0, 0, args :flat)
+.end
+.sub '!generate_meta_op_helper_cross' :outer('!generate_meta_op_sub')
+    .param pmc args :slurpy
+    $P0 = find_lex '$delegate_to'
+    .tailcall '!CROSSMETAOP'($P0, 0, 0, args :flat)
 .end
 .sub '!generate_meta_op_helper_hyper' :outer('!generate_meta_op_sub')
     .param pmc a

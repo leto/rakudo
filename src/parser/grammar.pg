@@ -252,8 +252,6 @@ token statement {
         <.ws>
     | <?before ';'> {*}                          #= null
     ]
-    {{ $P0 = get_hll_global ['Bool'], 'False'
-       set_global '$begin_compunit', $P0 }}
 }
 
 rule statement_control {
@@ -456,7 +454,7 @@ rule trait_auxiliary {
 
 rule trait_verb {
     [
-    | $<sym>=[of|returns] <typename>
+    | $<sym>=[of|returns] <fulltypename>
     | $<sym>=[handles] <noun>
     ]
     {*}
@@ -707,10 +705,12 @@ rule package_def {
     {*}                                                  #= open
     <trait>*
     [
+    | <block> {*}                                        #= block
     | <?{{ $P0 = get_global '$begin_compunit'
+           $P1 = get_hll_global ['Bool'], 'False'
+           set_global '$begin_compunit', $P1
            .return ($P0) }}>
       ';' <statement_block> {*}                          #= statement_block
-    | <block> {*}                                        #= block
     | {*}                                                #= panic
     ]
 }
@@ -806,6 +806,9 @@ token constant_declarator {
 token variable {
     <?sigil>
     [
+    || <sigil> '.' <longname> 
+           [ [<.unsp> | '\\']? <?before '('> <postcircumfix> ]?
+           {*}                                            #= methcall
     || '&' <twigil>? <sublongname=subshortname> {*}       #= subnoun
     || <sigil> <twigil>? <desigilname> {*}                #= desigilname
     || <special_variable> {*}                             #= special_variable
@@ -917,27 +920,29 @@ token quote {
     | <.before '<<' | '«'>  <quote_expression: :ww :qq>
     | <.before '<' >   <quote_expression: :w :q>
     | <.before '/'>    <quote_expression: :regex>
-    | [m|rx] <.ws> 
-        [ [':P5'|':Perl5'] <.ws> <quote_expression: :regex :P5>
+    | [m|rx] <.nofun> <.ws> 
+        [ [':P5'|':Perl5'] <.nofun> <.ws> <quote_expression: :regex :P5>
         |              <quote_expression: :regex>
         ]
     | qq [ <.ws> ':' ]?
-        [ w <.ws>         <quote_expression: :qq :w>
-        | $<x>=[x?] <.ws> <quote_expression: :qq>
+        [ w         <.nofun> <.ws> <quote_expression: :qq :w>
+        | $<x>=[x?] <.nofun> <.ws> <quote_expression: :qq>
         ]
     | q [ <.ws> ':' ]?
-        [ q <.ws>         <quote_expression: :qq>
-        | w <.ws>         <quote_expression: :q :w>
-        | 'PIR' <.ws>     <quote_expression: :PIR>
-        | $<x>=[x?] <.ws> <quote_expression: :q>
+        [ q         <.nofun> <.ws> <quote_expression: :qq>
+        | w         <.nofun> <.ws> <quote_expression: :q :w>
+        | PIR       <.nofun> <.ws> <quote_expression: :PIR>
+        | $<x>=[x?] <.nofun> <.ws> <quote_expression: :q>
         ]
     | Q [ <.ws> ':' ]?
-        [ 'PIR' <.ws>     <quote_expression: :PIR>
-        | 'q'   <.ws>     <quote_expression: :q>
-        | 'qq'  <.ws>     <quote_expression: :qq>
-        | 'b'   <.ws>     <quote_expression: :b>
-        | $<x>=[x?] <.ws> <quote_expression: >
+        [ PIR       <.nofun> <.ws> <quote_expression: :PIR>
+        | q         <.nofun> <.ws> <quote_expression: :q>
+        | qq        <.nofun> <.ws> <quote_expression: :qq>
+        | b         <.nofun> <.ws> <quote_expression: :b>
+        | $<x>=[x?] <.nofun> <.ws> <quote_expression: >
         ]
+    | s <.nofun> <.ws> <quote_expression: :q> 
+        <.panic: 's/// not implemented, try .subst as workaround'>
     ]
     {*}
 }
