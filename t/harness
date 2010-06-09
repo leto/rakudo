@@ -68,7 +68,19 @@ if ($archive) {
 
 if (eval "require $tap_harness_class;") {
     my %harness_options = (
-        exec        => ['./perl6'],
+        # We assume that .t files are Perl 6
+        # and run .pir files with Parrot that we were configured with
+        exec => sub {
+            my ( $harness, $test_file ) = @_;
+            my $parrot = $ENV{PARROT};
+            unless ($parrot) {
+                my $bindir = `parrot_config bindir`;
+                chomp $bindir;
+                $parrot = File::Spec->catfile($bindir, 'parrot');
+            }
+            return ['./perl6', $test_file ] if $test_file =~ /[.]t$/;
+            return [ $parrot, $test_file ] if $test_file =~ /[.]pir$/;
+        },
         verbosity   => 0+$Test::Harness::verbose,
         jobs        => $ENV{TEST_JOBS} || $jobs || 1,
         ignore_exit => 1,
