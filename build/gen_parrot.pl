@@ -12,8 +12,8 @@ gen_parrot.pl - script to obtain and build Parrot for Rakudo
 =head2 DESCRIPTION
 
 Maintains an appropriate copy of Parrot in the parrot/ subdirectory.
-The revision of Parrot to be used in the build is given by the
-build/PARROT_REVISION file.
+The SHA1 of Parrot to be used in the build is given by the
+build/PARROT_SHA1 file.
 
 =cut
 
@@ -25,28 +25,20 @@ use 5.008;
 my $slash = $^O eq 'MSWin32' ? '\\' : '/';
 
 ##  determine what revision of Parrot we require
-open my $REQ, "build/PARROT_REVISION"
-  || die "cannot open build/PARROT_REVISION\n";
-my ($reqsvn, $reqpar) = split(' ', <$REQ>);
-$reqsvn += 0;
+open my $REQ, "build/PARROT_SHA1"
+  || die "cannot open build/PARROT_SHA1\n";
+my ($reqsha1) = <$REQ>;
 close $REQ;
 
-{
-    no warnings;
-    if (open my $REV, '-|', "parrot_install${slash}bin${slash}parrot_config revision") {
-        my $revision = 0+<$REV>;
-        close $REV;
-        if ($revision >= $reqsvn) {
-            print "Parrot r$revision already available (r$reqsvn required)\n";
-            exit(0);
-        }
-    }
-}
+# TODO: Check if we already have the neccessary Parrot
 
-print "Checking out Parrot r$reqsvn via svn...\n";
-system_or_die(qw(svn checkout -r),  $reqsvn , qw(https://svn.parrot.org/parrot/trunk parrot));
+print "Cloning Parrot repo via git...\n";
+system_or_die(qw(git clone), qw(git://github.com/parrot/parrot.git));
 
 chdir('parrot') || die "Can't chdir to 'parrot': $!";
+
+# This leaves the parrot repo in a HEADless state. Implications?
+system_or_die(qw(git checkout $reqsha1));
 
 
 ##  If we have a Makefile from a previous build, do a 'make realclean'
