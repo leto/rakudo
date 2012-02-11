@@ -1,0 +1,25 @@
+before_script:
+    - sudo apt-get install libffi-dev libicu-dev libgmp3-dev liblocal-lib-perl zlib1g-dev git-core
+    - curl -L http://cpanmin.us | sudo perl - --self-upgrade
+    - export CI_USER=$USER
+#    - env
+    - mkdir ~/perl5 && perl -Mlocal::lib >> /tmp/local_lib.sh && source /tmp/local_lib_junk.sh
+    - sudo chown -R $CI_USER ~/.cpanm
+    - sudo chown -R $CI_USER ~/perl5
+# No, we are not going to run the tests for all these dependencies on every commit
+    - cpanm -n TAP::Harness::Archive TAP::Harness::ReportByDescription
+script: "perl Configure.pl $RAKUDO_CONFIG_FLAGS --gen-parrot && make test && make spectest"
+# branches:
+#   only:
+#     - master
+notifications:
+  recipients:
+    - duke@leto.net
+  email:
+    on_success: change
+    on_failure: always
+#  irc:
+#      - "irc.parrot.org#parrot"
+#      - "irc.freenode.net#perl6"
+#env:
+    - RAKUDO_CONFIG_FLAGS=""
