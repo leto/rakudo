@@ -8,7 +8,8 @@ before_script:
     - sudo chown -R $CI_USER ~/perl5
 # No, we are not going to run the tests for all these dependencies on every commit
     - cpanm -n TAP::Harness::Archive TAP::Harness::ReportByDescription
-script: "perl Configure.pl $RAKUDO_CONFIG_FLAGS --gen-parrot && make test && make spectest"
+
+script: "perl Configure.pl $RAKUDO_CONFIG_FLAGS --gen-parrot && make spectest"
 # branches:
 #   only:
 #     - master
