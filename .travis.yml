@@ -9,7 +9,7 @@ before_script:
 # No, we are not going to run the tests for all these dependencies on every commit
     - cpanm -n TAP::Harness::Archive TAP::Harness::ReportByDescription
 
-script: "perl Configure.pl $RAKUDO_CONFIG_FLAGS --gen-parrot && make spectest"
+script: "perl Configure.pl $RAKUDO_CONFIG_FLAGS --gen-parrot && make -j 2 spectest"
 # branches:
 #   only:
 #     - master
